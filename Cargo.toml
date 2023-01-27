@@ -1,0 +1,20 @@
+[package]
+name = "conways_game_of_life_rust"
+description = "Core library functionality for Conway's Game of Life."
+version = "0.1.0"
+edition = "2021"
+authors = ["Simon"]
+keywords = ["Conway's Game of Life","game of life","game","lib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+criterion = "0.3"
+rand = { version = "0.8.5", features = ["small_rng"] }
+rand_pcg = "0.3.1"
+
+[[bench]]
+name = "benchmark_step"
+harness = false
+
+[dependencies]
