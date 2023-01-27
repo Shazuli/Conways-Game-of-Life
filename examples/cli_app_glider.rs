@@ -1,5 +1,5 @@
 use std::{io::stdin};
-use conways_game_of_life_rust::Field;
+use conways_game_of_life_lib_rust::Field;
 
 fn main()
 {

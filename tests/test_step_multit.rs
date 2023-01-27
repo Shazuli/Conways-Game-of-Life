@@ -3,7 +3,7 @@ mod tests
 {
     use rand::{Rng, SeedableRng};
     use rand_pcg::Pcg32;
-    use conways_game_of_life_rust::*;
+    use conways_game_of_life_lib_rust::*;
 
     const ROWS: u16 = 24;
     const COLUMNS: u16 = 24;

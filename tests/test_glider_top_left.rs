@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests
 {
-    use conways_game_of_life_rust::*;
+    use conways_game_of_life_lib_rust::*;
     #[test]
     fn test_glider_top_left()
     {
