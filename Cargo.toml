@@ -1,10 +1,11 @@
 [package]
 name = "conways_game_of_life_lib_rust"
 description = "Core library functionality for Conway's Game of Life."
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 authors = ["Simon"]
-keywords = ["Conway's Game of Life","game of life","game","lib"]
+keywords = ["game_of_life","game","lib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
