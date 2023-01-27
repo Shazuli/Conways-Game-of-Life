@@ -1,4 +1,4 @@
-//! # Conway's Game of Life
+//! # Conways Game of Life
 //! 
 //! Core functionality for Conway's Game of Life.
 //! Includes data type and implementation for manipulating it.
