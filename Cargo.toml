@@ -2,10 +2,11 @@
 name = "conways_game_of_life_lib_rust"
 description = "Core library functionality for Conway's Game of Life."
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Simon"]
-keywords = ["game_of_life","game","lib"]
+keywords = ["game_of_life","game","lib","simulation"]
+categories = ["simulation","games","mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,5 +18,9 @@ rand_pcg = "0.3.1"
 [[bench]]
 name = "benchmark_step"
 harness = false
+
+[profile.release]
+opt-level = 3
+strip = true
 
 [dependencies]
