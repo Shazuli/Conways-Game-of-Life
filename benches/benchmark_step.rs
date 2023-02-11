@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use conways_game_of_life_lib_rust::Field;
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg32;
@@ -7,45 +9,45 @@ use criterion::{
     Criterion
 };
 
-const ROWS: u16 = 512;
-const COLUMNS: u16 = 512;
+const ROWS: u16 = 64;
+const COLUMNS: u16 = 64;
 const SEED: u64 = 5343542;
 
 fn benchmark_step_singlet(c: &mut Criterion)
 {
+    let mut group = c.benchmark_group("step_singlet");
+    
     let mut field = Field::new(ROWS, COLUMNS);
-    /*
-    *field.get_at(0,0) = 2;
-    *field.get_at(1,0) = 4;
-    *field.get_at(2,0) = 7;
-    */
     set_random_field(&mut field, SEED);
 
-    c.bench_function(
+    group.measurement_time(Duration::from_secs(9));
+
+    group.bench_function(
         "step_singlet",
         |b| b.iter(|| field.step_singlet())
     );
+
+    group.finish();
 }
 
-fn benchmarkstep_multit(c: &mut Criterion)
+fn benchmark_step_multit(c: &mut Criterion)
 {
+    let mut group = c.benchmark_group("step_multit");
+    
     let mut field = Field::new(ROWS, COLUMNS);
-
-    /*
-    *field.get_at(0,0) = 2;
-    *field.get_at(1,0) = 4;
-    *field.get_at(2,0) = 7;
-    */
-
     set_random_field(&mut field, SEED);
 
-    c.bench_function(
+    group.measurement_time(Duration::from_secs(9));
+
+    group.bench_function(
         "step_multit",
         |b| b.iter(|| field.step_multit())
     );
+
+    group.finish();
 }
 
-criterion_group!(benches, benchmark_step_singlet, benchmarkstep_multit);
+criterion_group!(benches, benchmark_step_singlet, benchmark_step_multit);
 criterion_main!(benches);
 
 

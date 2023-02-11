@@ -20,7 +20,9 @@ name = "benchmark_step"
 harness = false
 
 [profile.release]
-opt-level = 3
+opt-level = "z"
 strip = true
+lto = true
+codegen-units = 1
 
 [dependencies]

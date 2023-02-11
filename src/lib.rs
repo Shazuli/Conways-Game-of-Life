@@ -19,6 +19,18 @@ fn loop_around(mut val: u16, biggest: u16) -> u16
     val
 }
 
+macro_rules! set_alive {
+    ($block:expr, $bit:expr) => {
+        $block |= 1<<$bit
+    };
+}
+
+macro_rules! set_dead {
+    ($block:expr, $bit:expr) => {
+        $block &= !(1<<$bit)
+    };
+}
+
 pub use self::game_of_life::Field;
 pub use self::game_of_life::core;
 pub use self::game_of_life::step_multit;
@@ -94,14 +106,14 @@ pub mod game_of_life
             pub fn set_alive(&mut self, row: u16, column: u16)
             {
                 let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
-                self.current[r as usize][(c / 8) as usize] |= 1<<(c % 8);
+                set_alive!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
             #[doc = "Sets cell at location to dead."]
             pub fn set_dead(&mut self, row: u16, column: u16)
             {
                 let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
-                self.current[r as usize][(c / 8) as usize] &= !(1<<(c % 8));
+                set_dead!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
             #[doc = "Sets all cells to dead."]
@@ -182,15 +194,15 @@ pub mod game_of_life
                         // Game logic ..
                         if alive {
                             if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
-                                self.next[r as usize][(c / 8) as usize] |= 1<<(c % 8);// Alive
+                                set_alive!(self.next[r as usize][(c / 8) as usize], c % 8);// Alive
                             } else {
-                                self.next[r as usize][(c / 8) as usize] &= !(1<<(c % 8));
+                                set_dead!(self.next[r as usize][(c / 8) as usize], c % 8);// Dead
                             }
                         } else {
                             if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                self.next[r as usize][(c / 8) as usize] |= 1<<(c % 8);
+                                set_alive!(self.next[r as usize][(c / 8) as usize], c % 8);
                             } else {
-                                self.next[r as usize][(c / 8) as usize] &= !(1<<(c % 8));
+                                set_dead!(self.next[r as usize][(c / 8) as usize], c % 8);// Dead
                             }
                         }
                     }
@@ -223,7 +235,7 @@ pub mod game_of_life
             /// assert_eq!(6, *f.get(2,0));
             /// assert_eq!(2, *f.get(3,0));
             /// ```
-            pub fn step_multit(&mut self)
+            pub fn step_multit<'a>(&'a mut self)
             {
                 let mut data_next: Vec<(u16,u16,u8)> = Vec::with_capacity((self.rows * self.blocks) as usize);
                 let f = &self;
@@ -278,11 +290,11 @@ pub mod game_of_life
                                         // Game logic ..
                                         if alive {
                                             if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
-                                                new_block |= 1<<bo;
+                                                set_alive!(new_block, bo);
                                             }
                                         } else {
                                             if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                                new_block |= 1<<bo;
+                                                set_alive!(new_block, bo);
                                             }
                                         }
                                     }
@@ -292,6 +304,15 @@ pub mod game_of_life
                             );
                         }
                     }
+                    // let mut iter_th = th.iter().cycle();
+                    
+                    // loop {
+                    //     let t = iter_th.next().unwrap();
+                    //     if t.is_finished() {
+                    //         iter_th
+                    //     }
+                    // }
+                    
                     for t in th {
                         data_next.push(t.join().unwrap());// have to store the result in a variable outside the scope handler
                     }
