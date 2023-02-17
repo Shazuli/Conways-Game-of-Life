@@ -19,15 +19,15 @@ fn loop_around(mut val: u16, biggest: u16) -> u16
     val
 }
 
-macro_rules! set_alive {
-    ($block:expr, $bit:expr) => {
-        $block |= 1<<$bit
+macro_rules! set_bit {
+    ($val:expr, $bit:expr) => {
+        $val |= 1<<$bit
     };
 }
 
-macro_rules! set_dead {
-    ($block:expr, $bit:expr) => {
-        $block &= !(1<<$bit)
+macro_rules! clear_bit {
+    ($val:expr, $bit:expr) => {
+        $val &= !(1<<$bit)
     };
 }
 
@@ -106,14 +106,14 @@ pub mod game_of_life
             pub fn set_alive(&mut self, row: u16, column: u16)
             {
                 let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
-                set_alive!(self.current[r as usize][(c / 8) as usize], c % 8);
+                set_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
             #[doc = "Sets cell at location to dead."]
             pub fn set_dead(&mut self, row: u16, column: u16)
             {
                 let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
-                set_dead!(self.current[r as usize][(c / 8) as usize], c % 8);
+                clear_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
             #[doc = "Sets all cells to dead."]
@@ -121,7 +121,6 @@ pub mod game_of_life
             {
                 for r in 0..self.rows {
                     for b in 0..self.blocks {
-                        //self.next[r as usize][b as usize] ^= self.next[r as usize][b as usize];
                         self.current[r as usize][b as usize] ^= self.current[r as usize][b as usize];
                     }
                 }
@@ -155,7 +154,7 @@ pub mod game_of_life
             /// assert_eq!(6, *f.get(2,0));
             /// assert_eq!(2, *f.get(3,0));
             /// ```
-            pub fn step_singlet(&mut self)
+            pub fn step_singlet<'a>(&'a mut self)
             {
                 let (mut alive, mut cnt): (bool, i8);
 
@@ -194,15 +193,15 @@ pub mod game_of_life
                         // Game logic ..
                         if alive {
                             if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
-                                set_alive!(self.next[r as usize][(c / 8) as usize], c % 8);// Alive
+                                set_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                             } else {
-                                set_dead!(self.next[r as usize][(c / 8) as usize], c % 8);// Dead
+                                clear_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                             }
                         } else {
                             if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                set_alive!(self.next[r as usize][(c / 8) as usize], c % 8);
+                                set_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                             } else {
-                                set_dead!(self.next[r as usize][(c / 8) as usize], c % 8);// Dead
+                                clear_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                             }
                         }
                     }
@@ -238,6 +237,7 @@ pub mod game_of_life
             pub fn step_multit<'a>(&'a mut self)
             {
                 let mut data_next: Vec<(u16,u16,u8)> = Vec::with_capacity((self.rows * self.blocks) as usize);
+                //let data: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(vec![vec![0; self.blocks.into()]; self.rows.into()]));
                 let f = &self;
                 thread::scope(|s| {
                     
@@ -290,11 +290,11 @@ pub mod game_of_life
                                         // Game logic ..
                                         if alive {
                                             if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
-                                                set_alive!(new_block, bo);
+                                                set_bit!(new_block, bo);
                                             }
                                         } else {
                                             if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                                set_alive!(new_block, bo);
+                                                set_bit!(new_block, bo);
                                             }
                                         }
                                     }
@@ -304,14 +304,6 @@ pub mod game_of_life
                             );
                         }
                     }
-                    // let mut iter_th = th.iter().cycle();
-                    
-                    // loop {
-                    //     let t = iter_th.next().unwrap();
-                    //     if t.is_finished() {
-                    //         iter_th
-                    //     }
-                    // }
                     
                     for t in th {
                         data_next.push(t.join().unwrap());// have to store the result in a variable outside the scope handler
@@ -336,11 +328,12 @@ pub mod game_of_life
             #[doc = "Writes Field struct to a file on the system."]
             pub fn serialize(&self, path: String) -> std::io::Result<()>
             {
-
                 let mut file = File::create(path)?;
 
                 file.write_all(&self.rows.to_be_bytes())?;
-                file.write_all(&self.columns.to_be_bytes())?;
+
+                let offset: u8 = (&self.columns % 8) as u8;
+                file.write_all(&[offset])?;
 
                 for bl in self.current.iter() {
                     file.write_all(&bl)?;
@@ -357,11 +350,15 @@ pub mod game_of_life
                 let mut buf = [0; 2];
                 file.read(&mut buf)?;
                 let rows = (buf[0]<<4 | buf[1]) as u16;
+
+                let mut buf = [0; 1];
                 file.read(&mut buf)?;
-                let columns = (buf[0]<<4 | buf[1]) as u16;
+                let offset = buf[0];
 
                 let mut buf: Vec<u8> = Vec::new();
                 file.read_to_end(&mut buf)?;
+
+                let columns = ((buf.len() / rows as usize - ((offset > 0) as usize)) * 8 + offset as usize) as u16;
 
                 let mut f = Field::new(rows, columns);
 
