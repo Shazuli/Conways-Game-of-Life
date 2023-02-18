@@ -2,7 +2,7 @@
 name = "conways_game_of_life_lib_rust"
 description = "Core library functionality for Conway's Game of Life."
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Simon"]
 keywords = ["game_of_life","game","lib","simulation"]
