@@ -5,7 +5,7 @@ use conways_game_of_life_lib_rust::Field;
 
 fn main()
 {
-    let mut field = Field::new(24,24);
+    let mut field = Field::new(25,25);
 
     set_random_field(&mut field, 12345678);
 

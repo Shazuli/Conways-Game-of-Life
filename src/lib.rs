@@ -19,6 +19,39 @@ fn loop_around(mut val: u16, biggest: u16) -> u16
     val
 }
 
+// Count 9x9 around r c (including r c).
+fn count_neighbours(f: &Field, r: u16, c: u16) -> i8
+{
+    use std::cmp::min;
+    let mut cnt = 0;
+    if r == 0 {
+        for ro in r..min(r+2,f.rows) {
+            if c == 0 {
+                for co in c..min(c+2,f.columns) {
+                    cnt += f.is_alive(ro, co) as i8;
+                }
+            } else {
+                for co in c-1..min(c+2,f.columns) {
+                    cnt += f.is_alive(ro, co) as i8;
+                }
+            }
+        }
+    } else {
+        for ro in r-1..min(r+2,f.rows) {
+            if c == 0 {
+                for co in c..min(c+2,f.columns) {
+                    cnt += f.is_alive(ro, co) as i8;
+                }
+            } else {
+                for co in c-1..min(c+2,f.columns) {
+                    cnt += f.is_alive(ro, co) as i8;
+                }
+            }
+        }
+    }
+    cnt
+}
+
 macro_rules! set_bit {
     ($val:expr, $bit:expr) => {
         $val |= 1<<$bit
@@ -50,8 +83,7 @@ pub mod game_of_life
     #[doc = "Core functions for handling Field struct."]
     pub mod core
     {
-        use std::{cmp::min};
-        use crate::{game_of_life::Field, total_blocks, loop_around};
+        use crate::{game_of_life::Field, total_blocks, loop_around, count_neighbours};
         impl Field {
 
             #[doc = "Creates a new Field struct and returns it."]
@@ -89,7 +121,7 @@ pub mod game_of_life
             /// *field.get_at(2,0) = (1<<3) | (1<<4) | (1<<5);
             /// *field.get_at(0,0) = 2;
             /// ```
-            pub fn get_at(&mut self, row: u16, block: u16) -> &mut u8
+            pub fn get_at<'a>(&'a mut self, row: u16, block: u16) -> &'a mut u8
             {
                 let (r, b) = (loop_around(row,self.rows), loop_around(block,self.blocks));
                 &mut self.current[r as usize][b as usize]
@@ -129,9 +161,14 @@ pub mod game_of_life
             #[doc = "Make next generation current generation."]
             pub fn move_next_to_current(&mut self)
             {
+                let mask = (1<<(self.columns % 8))-1;
                 for r in 0..self.rows {
                     for b in 0..self.blocks {
-                        self.current[r as usize][b as usize] = self.next[r as usize][b as usize];
+                        if mask > 0 && b == self.blocks-1 {
+                            self.current[r as usize][b as usize] = self.next[r as usize][b as usize] & mask;// Zero unused bits
+                        } else {
+                            self.current[r as usize][b as usize] = self.next[r as usize][b as usize];
+                        }
                     }
                 }
             }
@@ -154,41 +191,14 @@ pub mod game_of_life
             /// assert_eq!(6, *f.get(2,0));
             /// assert_eq!(2, *f.get(3,0));
             /// ```
-            pub fn step_singlet<'a>(&'a mut self)
+            pub fn step_singlet(&mut self)
             {
                 let (mut alive, mut cnt): (bool, i8);
 
                 for r in 0..self.rows {
                     for c in 0..self.columns {
                         alive = self.is_alive(r, c);
-                        cnt = -(alive as i8);// Don't count the middle cell
-
-                        // Count 9x9. Gotta be a better way to do this.
-                        if r == 0 {
-                            for ro in r..min(r+2,self.rows) {
-                                if c == 0 {
-                                    for co in c..min(c+2,self.columns) {
-                                        cnt += self.is_alive(ro, co) as i8;
-                                    }
-                                } else {
-                                    for co in c-1..min(c+2,self.columns) {
-                                        cnt += self.is_alive(ro, co) as i8;
-                                    }
-                                }
-                            }
-                        } else {
-                            for ro in r-1..min(r+2,self.rows) {
-                                if c == 0 {
-                                    for co in c..min(c+2,self.columns) {
-                                        cnt += self.is_alive(ro, co) as i8;
-                                    }
-                                } else {
-                                    for co in c-1..min(c+2,self.columns) {
-                                        cnt += self.is_alive(ro, co) as i8;
-                                    }
-                                }
-                            }
-                        }
+                        cnt = count_neighbours(&self, r, c) - (alive as i8);
 
                         // Game logic ..
                         if alive {
@@ -213,8 +223,8 @@ pub mod game_of_life
     #[doc = "Concurrency module for running the simulation in multiple threads."]
     pub mod step_multit
     {
-        use crate::{game_of_life::Field};
-        use std::{thread::{self, ScopedJoinHandle}, cmp::min};
+        use crate::{game_of_life::Field, count_neighbours};
+        use std::{thread::{self, ScopedJoinHandle}};
         impl Field {
             /// Step the simulation once in multiple threads and stores the result in memory.
             ///
@@ -234,10 +244,9 @@ pub mod game_of_life
             /// assert_eq!(6, *f.get(2,0));
             /// assert_eq!(2, *f.get(3,0));
             /// ```
-            pub fn step_multit<'a>(&'a mut self)
+            pub fn step_multit(&mut self)
             {
                 let mut data_next: Vec<(u16,u16,u8)> = Vec::with_capacity((self.rows * self.blocks) as usize);
-                //let data: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(vec![vec![0; self.blocks.into()]; self.rows.into()]));
                 let f = &self;
                 thread::scope(|s| {
                     
@@ -258,34 +267,7 @@ pub mod game_of_life
                                         let c = b*8 + bo;
 
                                         alive = f.is_alive(r, c);
-                                        cnt = -(alive as i8);// Don't count the middle cell
-
-                                        // Count 9x9.
-                                        if r == 0 {
-                                            for ro in r..min(r+2,f.rows) {
-                                                if c == 0 {
-                                                    for co in c..min(c+2,f.columns) {
-                                                        cnt += f.is_alive(ro, co) as i8;
-                                                    }
-                                                } else {
-                                                    for co in c-1..min(c+2,f.columns) {
-                                                        cnt += f.is_alive(ro, co) as i8;
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            for ro in r-1..min(r+2,f.rows) {
-                                                if c == 0 {
-                                                    for co in c..min(c+2,f.columns) {
-                                                        cnt += f.is_alive(ro, co) as i8;
-                                                    }
-                                                } else {
-                                                    for co in c-1..min(c+2,f.columns) {
-                                                        cnt += f.is_alive(ro, co) as i8;
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        cnt = count_neighbours(f, r, c) -(alive as i8);
 
                                         // Game logic ..
                                         if alive {
@@ -309,8 +291,7 @@ pub mod game_of_life
                         data_next.push(t.join().unwrap());// have to store the result in a variable outside the scope handler
                     }
                 });
-                
-                //self.next[1][1] = 1;
+
                 for bl in data_next.iter() {
                     self.next[bl.0 as usize][bl.1 as usize] = bl.2;
                 }
