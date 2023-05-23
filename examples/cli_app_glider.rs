@@ -1,14 +1,16 @@
-use std::{io::stdin};
-use conways_game_of_life_lib_rust::Field;
+use std::io::stdin;
+use conways_game_of_life_lib_rust::{Field, set_field};
 
 fn main()
 {
     let mut field = Field::new(24,24);
 
-    
-    *field.get_at(0,0) = 2;
-    *field.get_at(1,0) = 4;
-    *field.get_at(2,0) = 7;
+
+    set_field!(&mut field;
+        0, 0, 2;
+        1, 0, 4;
+        2, 0, 7;
+    );
 
     loop {
         let mut input = String::new();
@@ -42,9 +44,9 @@ fn draw(f: &Field)
     for c in 0..f.columns {
         for r in 0..f.rows {
             if f.is_alive(r,c) {
-                print!("{} ", 'X')
+                print!("{} ", 'X');
             } else {
-                print!("{} ", '.')
+                print!("{} ", '.');
             }
         }
         println!();

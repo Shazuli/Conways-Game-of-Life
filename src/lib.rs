@@ -19,7 +19,7 @@ fn loop_around(mut val: u16, biggest: u16) -> u16
     val
 }
 
-// Count 9x9 around r c (including r c).
+// Count 3x3 around r c (including r c).
 fn count_neighbours(f: &Field, r: u16, c: u16) -> i8
 {
     use std::cmp::min;
@@ -64,6 +64,33 @@ macro_rules! clear_bit {
     };
 }
 
+/// Set Field struct cell bytes.
+/// 
+/// # Example
+/// ```
+/// use Conways_game_of_life_rust::{Field, set_field};
+///
+/// let f: Field = Field::new(8,8);
+/// set_field!(&mut f;
+///     0, 0, 2;
+///     1, 0, 4;
+///     2, 0, 7;
+/// );
+/// /*     X
+///  * X   X
+///  *   X X
+///  */
+/// ```
+#[macro_export]
+macro_rules! set_field {
+    ($field:expr;
+        $($r:expr, $b:expr, $block:expr;)+ $(,)?) => {
+            $(
+                *Field::get_at($field, $r, $b) = $block;
+            )+
+    }
+}
+
 pub use self::game_of_life::Field;
 pub use self::game_of_life::core;
 pub use self::game_of_life::step_multit;
@@ -106,7 +133,7 @@ pub mod game_of_life
                     columns,
                     blocks,
                     current: line.clone(),
-                    next: line.clone()
+                    next: line.to_owned()
                 };
                 f
             }
@@ -121,30 +148,30 @@ pub mod game_of_life
             /// *field.get_at(2,0) = (1<<3) | (1<<4) | (1<<5);
             /// *field.get_at(0,0) = 2;
             /// ```
-            pub fn get_at<'a>(&'a mut self, row: u16, block: u16) -> &'a mut u8
+            pub fn get_at(&mut self, row: u16, block: u16) -> &mut u8
             {
-                let (r, b) = (loop_around(row,self.rows), loop_around(block,self.blocks));
+                let (r, b) = (loop_around(row, self.rows), loop_around(block, self.blocks));
                 &mut self.current[r as usize][b as usize]
             }
 
             #[doc = "Returns whenever cell at location is alive."]
             pub fn is_alive(&self, row: u16, column: u16) -> bool
             {
-                let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
+                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
                 self.current[r as usize][(c / 8) as usize] & 1<<(c % 8) >= 1
             }
 
             #[doc = "Sets cell at location to alive."]
             pub fn set_alive(&mut self, row: u16, column: u16)
             {
-                let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
+                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
                 set_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
             #[doc = "Sets cell at location to dead."]
             pub fn set_dead(&mut self, row: u16, column: u16)
             {
-                let (r, c) = (loop_around(row,self.rows), loop_around(column,self.columns));
+                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
                 clear_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
             }
 
@@ -177,12 +204,14 @@ pub mod game_of_life
             /// 
             /// # Examples
             /// ```
-            /// use conways_game_of_life_rust::Field;
+            /// use conways_game_of_life_rust::{Field, set_field};
             /// 
             /// let mut f = Field::new(8,8);
-            /// *field.get(0,0) = 2;
-            /// *field.get(1,0) = 4;
-            /// *field.get(2,0) = 7;
+            /// set_field!(&mut f;
+            ///     0, 0, 2;
+            ///     1, 0, 4;
+            ///     2, 0, 7;
+            /// );
             /// 
             /// f.step_singlet();
             /// f.move_next_generation_to_current();
@@ -207,12 +236,8 @@ pub mod game_of_life
                             } else {
                                 clear_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                             }
-                        } else {
-                            if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                set_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
-                            } else {
-                                clear_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
-                            }
+                        } else if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
+                            set_bit!(self.next[r as usize][(c / 8) as usize], c % 8);
                         }
                     }
                 }
@@ -230,12 +255,14 @@ pub mod game_of_life
             ///
             /// # Examples
             /// ```
-            /// use conways_game_of_life_rust::Field;
+            /// use conways_game_of_life_rust::{Field, set_field};
             /// 
             /// let mut f = Field::new(8,8);
-            /// *field.get(0,0) = 2;
-            /// *field.get(1,0) = 4;
-            /// *field.get(2,0) = 7;
+            /// set_field!(&mut f;
+            ///     0, 0, 2;
+            ///     1, 0, 4;
+            ///     2, 0, 7;
+            /// );
             /// 
             /// f.step_multit();
             /// f.move_next_generation_to_current();
@@ -323,7 +350,7 @@ pub mod game_of_life
                 Ok(())
             }
 
-            #[doc = "Reads a file on the system to a Field struct."]
+            #[doc = "Reads a file on the system to load a Field struct."]
             pub fn deserialize(path: String) -> std::io::Result<Field>
             {
                 let mut file = File::open(path)?;

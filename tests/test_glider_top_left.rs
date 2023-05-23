@@ -6,9 +6,11 @@ mod tests
     fn test_glider_top_left()
     {
         let mut f = Field::new(8, 8);
-        *f.get_at(0,0) = 2;
-        *f.get_at(1,0) = 4;
-        *f.get_at(2,0) = 7;
+        set_field!(&mut f;
+            0, 0, 2;
+            1, 0, 4;
+            2, 0, 7;
+        );
 
         f.step_singlet();
         f.move_next_to_current();

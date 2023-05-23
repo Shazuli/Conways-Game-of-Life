@@ -42,9 +42,9 @@ fn draw(f: &Field)
     for c in 0..f.columns {
         for r in 0..f.rows {
             if f.is_alive(r,c) {
-                print!("{} ", 'X')
+                print!("{} ", 'X');
             } else {
-                print!("{} ", '.')
+                print!("{} ", '.');
             }
         }
         println!();
