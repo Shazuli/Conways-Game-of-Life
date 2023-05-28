@@ -4,12 +4,14 @@ use conways_game_of_life_lib_rust::{Field, set_field};
 fn main()
 {
     let mut field = Field::new(24,24);
-
-
     set_field!(&mut field;
-        0, 0, 2;
-        1, 0, 4;
-        2, 0, 7;
+        0, 0, 2;  10, 0, 2;
+        1, 0, 4;  11, 0, 4;
+        2, 0, 7;  12, 0, 7;
+
+        0, 0, 2<<5;
+        1, 0, 4<<5;
+        2, 0, 7<<5;
     );
 
     loop {
@@ -35,14 +37,14 @@ fn main()
                 
             }
         }
-        println!("{esc}[{r}A",esc = 27 as char,r = field.columns+2);
+        println!("{esc}[{r}A",esc = 27 as char,r = field.get_columns()+2);
     }
 }
 
 fn draw(f: &Field)
 {
-    for c in 0..f.columns {
-        for r in 0..f.rows {
+    for c in 0..f.get_columns() {
+        for r in 0..f.get_rows() {
             if f.is_alive(r,c) {
                 print!("{} ", 'X');
             } else {

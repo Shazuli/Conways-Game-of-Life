@@ -44,8 +44,8 @@ mod tests
     fn set_random_field(f: &mut Field, seed: u64)
     {
         let mut rng = Pcg32::seed_from_u64(seed);
-        for r in 0..f.rows {
-            for b in 0..f.blocks {
+        for r in 0..f.get_rows() {
+            for b in 0..f.get_blocks() {
                 *f.get_at(r, b) = rng.gen_range(0..=255);
             }
         }

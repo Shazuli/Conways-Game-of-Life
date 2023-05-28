@@ -23,8 +23,8 @@ mod tests
 
         let mut f2 = Field::deserialize(String::from(PATH)).unwrap();
 
-        assert_eq!(f1.rows, f2.rows, "Rows didn't match");
-        assert_eq!(f1.columns, f2.columns, "Columns didn't match");
+        assert_eq!(f1.get_rows(), f2.get_rows(), "Rows didn't match");
+        assert_eq!(f1.get_columns(), f2.get_columns(), "Columns didn't match");
         for r in 0..ROWS {
             for b in 0..COLUMNS/8 {
                 assert_eq!(*f1.get_at(r, b), *f2.get_at(r, b), "Did not match at r={} b={}", r, b);
@@ -37,8 +37,8 @@ mod tests
     fn set_random_field(f: &mut Field, seed: u64)
     {
         let mut rng = Pcg32::seed_from_u64(seed);
-        for r in 0..f.rows {
-            for b in 0..f.blocks {
+        for r in 0..f.get_rows() {
+            for b in 0..f.get_blocks() {
                 *f.get_at(r, b) = rng.gen_range(0..=255);
             }
         }

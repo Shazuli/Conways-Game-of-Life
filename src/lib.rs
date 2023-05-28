@@ -4,12 +4,6 @@
 //! Includes data type and implementation for manipulating it.
 //! Also includes methods for serialising data to file.
 
-// How many bytes are minimally required for each line.
-fn total_blocks(columns: u16) -> u16
-{
-    columns / 8 + ((columns % 8 > 0) as u16)
-}
-
 // Decrease the input value until it's smaller than the largest allowed value.
 fn loop_around(mut val: u16, biggest: u16) -> u16
 {
@@ -17,39 +11,6 @@ fn loop_around(mut val: u16, biggest: u16) -> u16
         val -= biggest;
     }
     val
-}
-
-// Count 3x3 around r c (including r c).
-fn count_neighbours(f: &Field, r: u16, c: u16) -> i8
-{
-    use std::cmp::min;
-    let mut cnt = 0;
-    if r == 0 {
-        for ro in r..min(r+2,f.rows) {
-            if c == 0 {
-                for co in c..min(c+2,f.columns) {
-                    cnt += f.is_alive(ro, co) as i8;
-                }
-            } else {
-                for co in c-1..min(c+2,f.columns) {
-                    cnt += f.is_alive(ro, co) as i8;
-                }
-            }
-        }
-    } else {
-        for ro in r-1..min(r+2,f.rows) {
-            if c == 0 {
-                for co in c..min(c+2,f.columns) {
-                    cnt += f.is_alive(ro, co) as i8;
-                }
-            } else {
-                for co in c-1..min(c+2,f.columns) {
-                    cnt += f.is_alive(ro, co) as i8;
-                }
-            }
-        }
-    }
-    cnt
 }
 
 macro_rules! set_bit {
@@ -64,7 +25,7 @@ macro_rules! clear_bit {
     };
 }
 
-/// Set Field struct cell bytes.
+/// Clears the Field and sets Field struct cell bytes.
 /// 
 /// # Example
 /// ```
@@ -85,8 +46,9 @@ macro_rules! clear_bit {
 macro_rules! set_field {
     ($field:expr;
         $($r:expr, $b:expr, $block:expr;)+ $(,)?) => {
+            Field::set_all_dead($field);
             $(
-                *Field::get_at($field, $r, $b) = $block;
+                *Field::get_at($field, $r, $b) |= $block;
             )+
     }
 }
@@ -100,9 +62,9 @@ pub mod game_of_life
 {
     #[derive(Clone)]
     pub struct Field {
-        pub rows: u16,
-        pub columns: u16,
-        pub blocks: u16,
+        rows: u16,
+        columns: u16,
+        blocks: u16,
         current: Vec<Vec<u8>>,
         next: Vec<Vec<u8>>
     }
@@ -110,7 +72,8 @@ pub mod game_of_life
     #[doc = "Core functions for handling Field struct."]
     pub mod core
     {
-        use crate::{game_of_life::Field, total_blocks, loop_around, count_neighbours};
+        use crate::{game_of_life::Field, loop_around};
+        use std::cmp::min;
         impl Field {
 
             #[doc = "Creates a new Field struct and returns it."]
@@ -120,7 +83,8 @@ pub mod game_of_life
                     panic!("Size must be larger than 0");
                 }
 
-                let blocks = total_blocks(columns);
+                // How many bytes are minimally required for each line.
+                let blocks = columns / 8 + ((columns % 8 > 0) as u16);
 
                 if blocks == 0 {
                     panic!("Block size became 0");
@@ -135,7 +99,23 @@ pub mod game_of_life
                     current: line.clone(),
                     next: line.to_owned()
                 };
+
                 f
+            }
+
+            #[doc = "Get rows of Field struct."]
+            pub fn get_rows(&self) -> u16 {
+                self.rows
+            }
+
+            #[doc = "Get columns of Field struct."]
+            pub fn get_columns(&self) -> u16 {
+                self.columns
+            }
+
+            #[doc = "Get blocks of Field struct."]
+            pub fn get_blocks(&self) -> u16 {
+                self.blocks
             }
 
             /// Get mut byte at position.
@@ -148,6 +128,14 @@ pub mod game_of_life
             /// *field.get_at(2,0) = (1<<3) | (1<<4) | (1<<5);
             /// *field.get_at(0,0) = 2;
             /// ```
+            /// ```
+            /// use Conways_game_of_life_rust::Field;
+            ///
+            /// let f: Field = Field::new(26,26);
+            ///
+            /// let (r, c) = (13, 19);
+            /// let byte: u8 = *field.get_at(r,c/8);
+            /// ```
             pub fn get_at(&mut self, row: u16, block: u16) -> &mut u8
             {
                 let (r, b) = (loop_around(row, self.rows), loop_around(block, self.blocks));
@@ -159,6 +147,38 @@ pub mod game_of_life
             {
                 let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
                 self.current[r as usize][(c / 8) as usize] & 1<<(c % 8) >= 1
+            }
+
+            #[doc = "Count 3x3 around r c including r c."]
+            pub fn count_neighbours(&self, r: u16, c: u16) -> i8
+            {
+                let mut cnt = 0;
+                if r == 0 {
+                    for ro in r..min(r+2,self.rows) {
+                        if c == 0 {
+                            for co in c..min(c+2, self.columns) {
+                                cnt += self.is_alive(ro, co) as i8;
+                            }
+                        } else {
+                            for co in c-1..min(c+2, self.columns) {
+                                cnt += self.is_alive(ro, co) as i8;
+                            }
+                        }
+                    }
+                } else {
+                    for ro in r-1..min(r+2,self.rows) {
+                        if c == 0 {
+                            for co in c..min(c+2,self.columns) {
+                                cnt += self.is_alive(ro, co) as i8;
+                            }
+                        } else {
+                            for co in c-1..min(c+2,self.columns) {
+                                cnt += self.is_alive(ro, co) as i8;
+                            }
+                        }
+                    }
+                }
+                cnt
             }
 
             #[doc = "Sets cell at location to alive."]
@@ -227,7 +247,7 @@ pub mod game_of_life
                 for r in 0..self.rows {
                     for c in 0..self.columns {
                         alive = self.is_alive(r, c);
-                        cnt = count_neighbours(&self, r, c) - (alive as i8);
+                        cnt = self.count_neighbours(r, c) - (alive as i8);
 
                         // Game logic ..
                         if alive {
@@ -248,8 +268,8 @@ pub mod game_of_life
     #[doc = "Concurrency module for running the simulation in multiple threads."]
     pub mod step_multit
     {
-        use crate::{game_of_life::Field, count_neighbours};
-        use std::{thread::{self, ScopedJoinHandle}};
+        use crate::game_of_life::Field;
+        use std::{thread, sync::{Arc, Mutex}};
         impl Field {
             /// Step the simulation once in multiple threads and stores the result in memory.
             ///
@@ -273,62 +293,52 @@ pub mod game_of_life
             /// ```
             pub fn step_multit(&mut self)
             {
-                let mut data_next: Vec<(u16,u16,u8)> = Vec::with_capacity((self.rows * self.blocks) as usize);
                 let f = &self;
+                let bytes = &Arc::new(Mutex::new(vec![vec![0; self.blocks as usize]; self.rows as usize]));
+
                 thread::scope(|s| {
                     
-                    let mut th: Vec<ScopedJoinHandle<(u16,u16,u8)>> = Vec::with_capacity((self.rows * self.blocks) as usize);
                     for r in 0..self.rows {
                         for b in 0..self.blocks {
 
-                            th.push(
-                                s.spawn(move || {
-                                    let r = r.clone();
-                                    let b = b.clone();
+                            s.spawn(move || {
+                                let r = r.clone();
+                                let b = b.clone();
 
-                                    let (mut alive, mut cnt): (bool, i8);
+                                let (mut alive, mut cnt): (bool, i8);
 
-                                    let mut new_block: u8 = 0;
+                                let mut new_block: u8 = 0;
 
-                                    for bo in 0..8 {
-                                        let c = b*8 + bo;
+                                for bo in 0..8 {
+                                    let c = b*8 + bo;
 
-                                        alive = f.is_alive(r, c);
-                                        cnt = count_neighbours(f, r, c) -(alive as i8);
+                                    alive = f.is_alive(r, c);
+                                    cnt = f.count_neighbours(r, c) - (alive as i8);
 
-                                        // Game logic ..
-                                        if alive {
-                                            if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
-                                                set_bit!(new_block, bo);
-                                            }
-                                        } else {
-                                            if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
-                                                set_bit!(new_block, bo);
-                                            }
+                                    // Game logic ..
+                                    if alive {
+                                        if cnt == 2 || cnt == 3 {// Living cell has 3 or 4 living neighbours survives
+                                            set_bit!(new_block, bo);
                                         }
+                                    } else if cnt == 3 {// Dead cell becomes alive if it has exactly 3 living neighbours
+                                        set_bit!(new_block, bo);
                                     }
+                                }
 
-                                    (r,b,new_block)
-                                })
-                            );
+                                bytes.lock().unwrap()[r as usize][b as usize] = new_block;
+                            });
                         }
-                    }
-                    
-                    for t in th {
-                        data_next.push(t.join().unwrap());// have to store the result in a variable outside the scope handler
                     }
                 });
 
-                for bl in data_next.iter() {
-                    self.next[bl.0 as usize][bl.1 as usize] = bl.2;
-                }
+                self.next = bytes.lock().unwrap().to_owned();
             }
         }
     }
 
     #[doc = "Read and write from system from- to Field struct."]
     pub mod serialize {
-        use crate::{game_of_life::Field};
+        use crate::game_of_life::Field;
         use std::{fs::File, io::{Write, Read}};
 
         impl Field {

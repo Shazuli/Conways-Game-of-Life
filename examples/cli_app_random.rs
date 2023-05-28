@@ -33,14 +33,14 @@ fn main()
                 
             }
         }
-        println!("{esc}[{r}A",esc = 27 as char,r = field.columns+2);
+        println!("{esc}[{r}A",esc = 27 as char,r = field.get_columns()+2);
     }
 }
 
 fn draw(f: &Field)
 {
-    for c in 0..f.columns {
-        for r in 0..f.rows {
+    for c in 0..f.get_columns() {
+        for r in 0..f.get_rows() {
             if f.is_alive(r,c) {
                 print!("{} ", 'X');
             } else {
@@ -54,8 +54,8 @@ fn draw(f: &Field)
 fn set_random_field(f: &mut Field, seed: u64)
 {
     let mut rng = Pcg32::seed_from_u64(seed);
-    for r in 0..f.rows {
-        for b in 0..f.blocks {
+    for r in 0..f.get_rows() {
+        for b in 0..f.get_blocks() {
             *f.get_at(r, b) = rng.gen_range(0..=255);
         }
     }
