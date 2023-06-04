@@ -4,15 +4,6 @@
 //! Includes data type and implementation for manipulating it.
 //! Also includes methods for serialising data to file.
 
-// Decrease the input value until it's smaller than the largest allowed value.
-fn loop_around(mut val: u16, biggest: u16) -> u16
-{
-    while val > biggest {
-        val -= biggest;
-    }
-    val
-}
-
 macro_rules! set_bit {
     ($val:expr, $bit:expr) => {
         $val |= 1<<$bit
@@ -25,37 +16,13 @@ macro_rules! clear_bit {
     };
 }
 
-/// Clears the Field and sets Field struct cell bytes.
-/// 
-/// # Example
-/// ```
-/// use Conways_game_of_life_rust::{Field, set_field};
-///
-/// let f: Field = Field::new(8,8);
-/// set_field!(&mut f;
-///     0, 0, 2;
-///     1, 0, 4;
-///     2, 0, 7;
-/// );
-/// /*     X
-///  * X   X
-///  *   X X
-///  */
-/// ```
-#[macro_export]
-macro_rules! set_field {
-    ($field:expr;
-        $($r:expr, $b:expr, $block:expr;)+ $(,)?) => {
-            Field::set_all_dead($field);
-            $(
-                *Field::get_at($field, $r, $b) |= $block;
-            )+
-    }
-}
-
+#[doc(hidden)]
 pub use self::game_of_life::Field;
+#[doc(hidden)]
 pub use self::game_of_life::core;
+#[doc(hidden)]
 pub use self::game_of_life::step_multit;
+#[doc(hidden)]
 pub use self::game_of_life::serialize;
 
 pub mod game_of_life
@@ -69,14 +36,14 @@ pub mod game_of_life
         next: Vec<Vec<u8>>
     }
 
-    #[doc = "Core functions for handling Field struct."]
+    ///Core functions for handling Field struct.
     pub mod core
     {
-        use crate::{game_of_life::Field, loop_around};
+        use crate::game_of_life::Field;
         use std::cmp::min;
         impl Field {
 
-            #[doc = "Creates a new Field struct and returns it."]
+            ///Creates a new Field struct and returns it.
             pub fn new(rows: u16, columns: u16) -> Field
             {
                 if rows == 0 || columns == 0 {
@@ -103,17 +70,17 @@ pub mod game_of_life
                 f
             }
 
-            #[doc = "Get rows of Field struct."]
+            ///Get rows of Field struct.
             pub fn get_rows(&self) -> u16 {
                 self.rows
             }
 
-            #[doc = "Get columns of Field struct."]
+            ///Get columns of Field struct.
             pub fn get_columns(&self) -> u16 {
                 self.columns
             }
 
-            #[doc = "Get blocks of Field struct."]
+            /// Get blocks of Field struct.
             pub fn get_blocks(&self) -> u16 {
                 self.blocks
             }
@@ -124,32 +91,43 @@ pub mod game_of_life
             /// ```
             /// use Conways_game_of_life_rust::Field;
             ///
-            /// let f: Field = Field::new(8,8);
+            /// let f: Field = Field::new(8, 8);
             /// *field.get_at(2,0) = (1<<3) | (1<<4) | (1<<5);
             /// *field.get_at(0,0) = 2;
             /// ```
             /// ```
             /// use Conways_game_of_life_rust::Field;
             ///
-            /// let f: Field = Field::new(26,26);
+            /// let f: Field = Field::new(26, 26);
             ///
             /// let (r, c) = (13, 19);
-            /// let byte: u8 = *field.get_at(r,c/8);
+            /// let byte: u8 = *field.get_at(r, c / 8);
             /// ```
             pub fn get_at(&mut self, row: u16, block: u16) -> &mut u8
             {
-                let (r, b) = (loop_around(row, self.rows), loop_around(block, self.blocks));
-                &mut self.current[r as usize][b as usize]
+                &mut self.current[row as usize][block as usize]
             }
 
-            #[doc = "Returns whenever cell at location is alive."]
+            /// Set multiple bytes from position.
+            pub fn set_at(&mut self, row: u16, block: u16, new_blocks: usize)
+            {
+                let mut new_block = new_blocks;
+                let mut i: u16 = 0;
+                while new_block != 0 {
+                    *self.get_at(row, i + block) = new_block as u8;
+                    i += 1;
+                    new_block >>= i * 8;
+                }
+
+            }
+
+            /// Returns whenever cell at location is alive.
             pub fn is_alive(&self, row: u16, column: u16) -> bool
             {
-                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
-                self.current[r as usize][(c / 8) as usize] & 1<<(c % 8) >= 1
+                self.current[row as usize][(column / 8) as usize] & 1<<(column % 8) >= 1
             }
 
-            #[doc = "Count 3x3 around r c including r c."]
+            /// Count 3x3 around r c including r c.
             pub fn count_neighbours(&self, r: u16, c: u16) -> i8
             {
                 let mut cnt = 0;
@@ -181,21 +159,19 @@ pub mod game_of_life
                 cnt
             }
 
-            #[doc = "Sets cell at location to alive."]
+            ///Sets cell at location to alive.
             pub fn set_alive(&mut self, row: u16, column: u16)
             {
-                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
-                set_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
+                set_bit!(self.current[row as usize][(column / 8) as usize], column % 8);
             }
 
-            #[doc = "Sets cell at location to dead."]
+            ///Sets cell at location to dead.
             pub fn set_dead(&mut self, row: u16, column: u16)
             {
-                let (r, c) = (loop_around(row, self.rows), loop_around(column, self.columns));
-                clear_bit!(self.current[r as usize][(c / 8) as usize], c % 8);
+                clear_bit!(self.current[row as usize][(column / 8) as usize], column % 8);
             }
 
-            #[doc = "Sets all cells to dead."]
+            ///Sets all cells to dead.
             pub fn set_all_dead(&mut self)
             {
                 for r in 0..self.rows {
@@ -205,7 +181,7 @@ pub mod game_of_life
                 }
             }
 
-            #[doc = "Make next generation current generation."]
+            ///Make next generation current generation.
             pub fn move_next_to_current(&mut self)
             {
                 let mask = (1<<(self.columns % 8))-1;
@@ -226,7 +202,7 @@ pub mod game_of_life
             /// ```
             /// use conways_game_of_life_rust::{Field, set_field};
             /// 
-            /// let mut f = Field::new(8,8);
+            /// let mut f = Field::new(8, 8);
             /// set_field!(&mut f;
             ///     0, 0, 2;
             ///     1, 0, 4;
@@ -235,10 +211,10 @@ pub mod game_of_life
             /// 
             /// f.step_singlet();
             /// f.move_next_generation_to_current();
-            /// assert_eq!(0, *f.get(0,0));
-            /// assert_eq!(5, *f.get(1,0));
-            /// assert_eq!(6, *f.get(2,0));
-            /// assert_eq!(2, *f.get(3,0));
+            /// assert_eq!(0, *f.get(0, 0));
+            /// assert_eq!(5, *f.get(1, 0));
+            /// assert_eq!(6, *f.get(2, 0));
+            /// assert_eq!(2, *f.get(3, 0));
             /// ```
             pub fn step_singlet(&mut self)
             {
@@ -263,9 +239,40 @@ pub mod game_of_life
                 }
             }
         }
+
+        /// Clears the Field and sets Field struct cell bytes.
+        /// 
+        /// # Example
+        /// ```
+        /// use Conways_game_of_life_rust::{Field, set_field};
+        ///
+        /// let f: Field = Field::new(24,24);
+        /// set_field!(&mut f;
+        ///     3,  1, 24;
+        ///     4,  1, 24;
+        ///     6,  1, 60;
+        ///     7,  1, 102;
+        ///     8,  1, 129;
+        ///     10, 1, 129;
+        ///     11, 1, 165;
+        ///     12, 1, 24;
+        ///     13, 1, 24;
+        ///     14, 1, 102;
+        /// );
+        /// ```
+        #[macro_export]
+        macro_rules! set_field {
+            ($field:expr;
+                $($r:expr, $b:expr, $block:expr;)+ $(,)?) => {
+                    Field::set_all_dead($field);
+                    $(
+                        Field::set_at($field, $r, $b, $block);
+                    )+
+            }
+        }
     }
 
-    #[doc = "Concurrency module for running the simulation in multiple threads."]
+    ///Concurrency module for running the simulation in multiple threads.
     pub mod step_multit
     {
         use crate::game_of_life::Field;
@@ -277,7 +284,7 @@ pub mod game_of_life
             /// ```
             /// use conways_game_of_life_rust::{Field, set_field};
             /// 
-            /// let mut f = Field::new(8,8);
+            /// let mut f = Field::new(8, 8);
             /// set_field!(&mut f;
             ///     0, 0, 2;
             ///     1, 0, 4;
@@ -286,15 +293,15 @@ pub mod game_of_life
             /// 
             /// f.step_multit();
             /// f.move_next_generation_to_current();
-            /// assert_eq!(0, *f.get(0,0));
-            /// assert_eq!(5, *f.get(1,0));
-            /// assert_eq!(6, *f.get(2,0));
-            /// assert_eq!(2, *f.get(3,0));
+            /// assert_eq!(0, *f.get(0, 0));
+            /// assert_eq!(5, *f.get(1, 0));
+            /// assert_eq!(6, *f.get(2, 0));
+            /// assert_eq!(2, *f.get(3, 0));
             /// ```
             pub fn step_multit(&mut self)
             {
                 let f = &self;
-                let bytes = &Arc::new(Mutex::new(vec![vec![0; self.blocks as usize]; self.rows as usize]));
+                let bytes = &Arc::new(Mutex::new(self.next.to_owned()));
 
                 thread::scope(|s| {
                     
@@ -310,7 +317,7 @@ pub mod game_of_life
                                 let mut new_block: u8 = 0;
 
                                 for bo in 0..8 {
-                                    let c = b*8 + bo;
+                                    let c = b * 8 + bo;
 
                                     alive = f.is_alive(r, c);
                                     cnt = f.count_neighbours(r, c) - (alive as i8);
@@ -330,20 +337,19 @@ pub mod game_of_life
                         }
                     }
                 });
-
                 self.next = bytes.lock().unwrap().to_owned();
             }
         }
     }
 
-    #[doc = "Read and write from system from- to Field struct."]
+    ///Read and write from system from- to Field struct.
     pub mod serialize {
         use crate::game_of_life::Field;
         use std::{fs::File, io::{Write, Read}};
 
         impl Field {
 
-            #[doc = "Writes Field struct to a file on the system."]
+            ///Writes Field struct to a file on the system.
             pub fn serialize(&self, path: String) -> std::io::Result<()>
             {
                 let mut file = File::create(path)?;
@@ -360,7 +366,7 @@ pub mod game_of_life
                 Ok(())
             }
 
-            #[doc = "Reads a file on the system to load a Field struct."]
+            ///Reads a file on the system to load a Field struct.
             pub fn deserialize(path: String) -> std::io::Result<Field>
             {
                 let mut file = File::open(path)?;
