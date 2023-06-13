@@ -114,7 +114,7 @@ pub mod game_of_life
                 let mut new_block = new_blocks;
                 let mut i: u16 = 0;
                 while new_block != 0 {
-                    *self.get_at(row, i + block) = new_block as u8;
+                    *self.get_at(row, i + block) |= new_block as u8;
                     i += 1;
                     new_block >>= i * 8;
                 }
@@ -356,8 +356,8 @@ pub mod game_of_life
 
                 file.write_all(&self.rows.to_be_bytes())?;
 
-                let offset: u8 = (&self.columns % 8) as u8;
-                file.write_all(&[offset])?;
+                let data: u8 = (&self.columns % 8) as u8;// 3 LSB are offset, 5 left for other things
+                file.write_all(&[data])?;
 
                 for bl in self.current.iter() {
                     file.write_all(&bl)?;
@@ -373,11 +373,12 @@ pub mod game_of_life
 
                 let mut buf = [0; 2];
                 file.read(&mut buf)?;
-                let rows = (buf[0]<<4 | buf[1]) as u16;
+                let rows = u16::from_be_bytes(buf);
 
                 let mut buf = [0; 1];
                 file.read(&mut buf)?;
-                let offset = buf[0];
+                let data = buf[0];
+                let offset = data & 7;
 
                 let mut buf: Vec<u8> = Vec::new();
                 file.read_to_end(&mut buf)?;

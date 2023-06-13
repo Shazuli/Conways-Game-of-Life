@@ -6,8 +6,8 @@ mod tests
     use rand_pcg::Pcg32;
 
 
-    const ROWS: u16 = 11;
-    const COLUMNS: u16 = 13;
+    const ROWS: u16 = 500;
+    const COLUMNS: u16 = 500;
     const SEED: u64 = 65535;
     const PATH: &str = "test_serialize";
 
