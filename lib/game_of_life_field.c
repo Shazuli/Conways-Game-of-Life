@@ -1,59 +1,93 @@
 #include "util.h"
 #include "game_of_life_field.h"
 
+#include "type_defs.h"
+
 #include <stdlib.h>
 
-static unsigned short totalBlocks(unsigned short columns)
-{
-    return columns / 8 + (columns % 8 > 0);
-}
+struct Field{
+    u16 rows;
+    u16 columns;
+    u16 blocks;
+    t_block_field **current;
+    t_block_field **next;
+};
 
 /*
  * Description: Create a field struct with everyone dead.
  * Input:       How many rows, how many columns.
- * Output:      Field struct.
+ * Output:      Pointer to Field struct.
  */
-Field field_new(unsigned short rows, unsigned short columns)
+Field *fieldNew(u16 rows, u16 columns)
 {
-    unsigned short blockSize = totalBlocks(columns);
+    u16 blockSize = columns / 8 + (columns % 8 > 0);
 
-    Field field = {
+    /*Field field = {
         .rows = rows,
         .columns = columns,
         .blocks = blockSize,
         .current = malloc(rows * sizeof(t_block_field *)),
         .next = malloc(rows * sizeof(t_block_field *))
-    };
-    for (unsigned short r=0;r<rows;r++) {
-        field.current[r] = (t_block_field *) calloc(blockSize,sizeof(t_block_field));
-        field.next[r] = (t_block_field *) calloc(blockSize,sizeof(t_block_field));
+    };*/
+
+    Field *field = malloc(sizeof(Field));
+    field->rows = rows;
+    field->columns = columns;
+    field->blocks = blockSize;
+    field->current = malloc(rows * sizeof(t_block_field *));
+    field->next = malloc(rows * sizeof(t_block_field *));
+
+    for (u16 r=0;r<rows;r++) {
+        field->current[r] = (t_block_field *) calloc(blockSize,sizeof(t_block_field));
+        field->next[r] = (t_block_field *) calloc(blockSize,sizeof(t_block_field));
     }
 
     return field;
 }
 
 
-void field_free(Field *field)
+u16 fieldGetRows(Field *field)
 {
-    for (unsigned short r=0;r<field->rows;r++) {
+    return field->rows;
+}
+
+u16 fieldGetColumns(Field *field)
+{
+    return field->columns;
+}
+
+u16 fieldGetBlocks(Field *field)
+{
+    return field->blocks;
+}
+
+t_block_field *fieldGetAt(Field *field, u16 row, u16 block)
+{
+    return &field->current[row][block];
+}
+
+void fieldFree(Field *field)
+{
+    for (u16 r=0;r<field->rows;r++) {
         free(field->current[r]);
         free(field->next[r]);
     }
     free(field->current);
     free(field->next);
+    free(field);
 }
 
 /*
  * Description: Step the simulation once in a single thread.
  * Input:       Field struct.
  */
-void field_stepSinglet(Field *field)
+void fieldStepSinglet(Field *field)
 {
     // Game logic.
-    char alive, cnt;
-    for (unsigned short r=0;r<field->rows;r++) {
-        for (unsigned short c=0;c<field->columns;c++) {
-            alive = field_isAlive(field,r,c);
+    i8 alive, cnt;
+    for (u16 r=0;r<field->rows;r++) {
+        for (u16 c=0;c<field->columns;c++) {
+            alive = fieldIsAlive(field,r,c);
             cnt = -alive;
 
             /*for (short ro=r-1;ro<(r+2);ro++) {
@@ -63,26 +97,26 @@ void field_stepSinglet(Field *field)
             }*/
             // Count 9x9
             if (r == 0) {
-                for (unsigned short ro=r;ro<MIN(r+2,field->rows);ro++) {
+                for (u16 ro=r;ro<MIN(r+2,field->rows);ro++) {
                     if (c == 0) {
-                        for (unsigned short co=c;co<MIN(c+2,field->columns);co++) {
-                            cnt += field_isAlive(field,ro,co);
+                        for (u16 co=c;co<MIN(c+2,field->columns);co++) {
+                            cnt += fieldIsAlive(field,ro,co);
                         }
                     } else {
-                        for (unsigned short co=c-1;co<MIN(c+2,field->columns);co++) {
-                            cnt += field_isAlive(field,ro,co);
+                        for (u16 co=c-1;co<MIN(c+2,field->columns);co++) {
+                            cnt += fieldIsAlive(field,ro,co);
                         }
                     }
                 }
             } else {
-                for (unsigned short ro=r-1;ro<MIN(r+2,field->rows);ro++) {
+                for (u16 ro=r-1;ro<MIN(r+2,field->rows);ro++) {
                     if (c == 0) {
-                        for (unsigned short co=c;co<MIN(c+2,field->columns);co++) {
-                            cnt += field_isAlive(field,ro,co);
+                        for (u16 co=c;co<MIN(c+2,field->columns);co++) {
+                            cnt += fieldIsAlive(field,ro,co);
                         }
                     } else {
-                        for (unsigned short co=c-1;co<MIN(c+2,field->columns);co++) {
-                            cnt += field_isAlive(field,ro,co);
+                        for (u16 co=c-1;co<MIN(c+2,field->columns);co++) {
+                            cnt += fieldIsAlive(field,ro,co);
                         }
                     }
                 }
@@ -110,10 +144,10 @@ void field_stepSinglet(Field *field)
  * Description: Move current generation to next generation.
  * Input:       Field struct.
  */
-void field_moveCurrentGenerationToNext(Field *field)
+void fieldMoveCurrentGenerationToNext(Field *field)
 {
     for (short r=0;r<field->rows;r++) {
-        for (unsigned short b=0;b<field->blocks;b++) {
+        for (u16 b=0;b<field->blocks;b++) {
             field->current[r][b] = field->next[r][b];
         }
     }
@@ -124,7 +158,7 @@ void field_moveCurrentGenerationToNext(Field *field)
  * Input:       Field struct, row, column.
  * Output:      1 if alive, 0 if dead.
  */
-char field_isAlive(Field *field, unsigned short row, unsigned short column)
+i8 fieldIsAlive(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
         row >= field->rows) {
@@ -137,36 +171,38 @@ char field_isAlive(Field *field, unsigned short row, unsigned short column)
  * Description: Set cell at position to alive.
  * Input:       Field struct, row, column.
  */
-void field_setAlive(Field *field, unsigned short row, unsigned short column)
+i8 fieldSetAlive(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
         row >= field->rows) {
-            return;
+            return 0;
     }
     SET_BIT(field->next[row][column / 8], column % 8);
+    return 1;
 }
 
 /*
  * Description: Set cell at position to dead.
  * Input:       Field struct, row, column.
  */
-void field_setDead(Field *field, unsigned short row, unsigned short column)
+i8 fieldSetDead(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
         row >= field->rows) {
-            return;
+            return 0;
     }
     CLEAR_BIT(field->next[row][column / 8], column % 8);
+    return 1;
 }
 
 /*
  * Description: Set all cells to dead.
  * Input:       Field struct.
  */
-void field_setAllDead(Field *field)
+void fieldSetAllDead(Field *field)
 {
     for (short r=0;r<field->rows;r++) {
-        for (unsigned short b=0;b<field->blocks;b++) {
+        for (u16 b=0;b<field->blocks;b++) {
             field->next[r][b] ^= field->next[r][b];
         }
     }
