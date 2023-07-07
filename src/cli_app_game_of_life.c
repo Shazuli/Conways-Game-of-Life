@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "../lib/game_of_life_field.h"
+#include "../lib/game_of_life_stepmultit.h"
 #include "../lib/game_of_life_file_handler.h"
 
 // Symbols for cell states.
@@ -135,7 +136,8 @@ int main(int argc, char * const argsv[])
 
             printf("Took %lf\n",(double)end-start);*/
             for (char i=0;i<speed;i++) {
-                fieldStepSinglet(fieldMatrix);
+                //fieldStepSinglet(fieldMatrix);
+                fieldStepMultit(fieldMatrix);
                 fieldMoveCurrentGenerationToNext(fieldMatrix);
             }
             printf("\033[%iA",5+columns);// Go back to top (if possible)

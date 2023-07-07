@@ -87,7 +87,7 @@ Field *fieldDeserialize(FILE *stream)
 
 
     u16 length = 0;
-    u8 *buf = calloc(rows * rows, sizeof(u8));// Hacky, should be LinkedList
+    u8 *buf = malloc(rows * rows * sizeof(u8));// Hacky, should be LinkedList
 
     while (fread(&buf[length++], 1, sizeof(u8), stream) != 0) {}
 

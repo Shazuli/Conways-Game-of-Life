@@ -6,7 +6,7 @@ tarFile := src_$(shell date +%Y-%m-%d-%H%M).tar.gz
 CC=gcc
 FLAGS = -g -Wall
 
-cli_app_game_of_life: src/cli_app_game_of_life.c build/game_of_life_field.o build/game_of_life_file_handler.o
+cli_app_game_of_life: src/cli_app_game_of_life.c build/game_of_life_field.o build/game_of_life_stepmultit.o build/game_of_life_file_handler.o
 	$(CC) $(FLAGS) -o $@ $^
 
 build/%.o: lib/%.c lib/%.h lib/util.h | build

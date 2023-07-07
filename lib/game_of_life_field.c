@@ -13,22 +13,9 @@ struct Field{
     t_block_field **next;
 };
 
-/*
- * Description: Create a field struct with everyone dead.
- * Input:       How many rows, how many columns.
- * Output:      Pointer to Field struct.
- */
 Field *fieldNew(u16 rows, u16 columns)
 {
     u16 blockSize = columns / 8 + (columns % 8 > 0);
-
-    /*Field field = {
-        .rows = rows,
-        .columns = columns,
-        .blocks = blockSize,
-        .current = malloc(rows * sizeof(t_block_field *)),
-        .next = malloc(rows * sizeof(t_block_field *))
-    };*/
 
     Field *field = malloc(sizeof(Field));
     field->rows = rows;
@@ -77,10 +64,6 @@ void fieldFree(Field *field)
     free(field);
 }
 
-/*
- * Description: Step the simulation once in a single thread.
- * Input:       Field struct.
- */
 void fieldStepSinglet(Field *field)
 {
     // Game logic.
@@ -90,11 +73,6 @@ void fieldStepSinglet(Field *field)
             alive = fieldIsAlive(field,r,c);
             cnt = -alive;
 
-            /*for (short ro=r-1;ro<(r+2);ro++) {
-                for (short co=c-1;co<(c+2);co++) {
-                    cnt += isAlive(field,ro,co);
-                }
-            }*/
             // Count 9x9
             if (r == 0) {
                 for (u16 ro=r;ro<MIN(r+2,field->rows);ro++) {
@@ -140,10 +118,6 @@ void fieldStepSinglet(Field *field)
     }
 }
 
-/*
- * Description: Move current generation to next generation.
- * Input:       Field struct.
- */
 void fieldMoveCurrentGenerationToNext(Field *field)
 {
     for (short r=0;r<field->rows;r++) {
@@ -153,11 +127,6 @@ void fieldMoveCurrentGenerationToNext(Field *field)
     }
 }
 
-/*
- * Description: Get if cell at position is alive.
- * Input:       Field struct, row, column.
- * Output:      1 if alive, 0 if dead.
- */
 i8 fieldIsAlive(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
@@ -167,10 +136,6 @@ i8 fieldIsAlive(Field *field, u16 row, u16 column)
     return (field->current[row][column / 8] & 1<<((column % 8))) >= 1;
 }
 
-/*
- * Description: Set cell at position to alive.
- * Input:       Field struct, row, column.
- */
 i8 fieldSetAlive(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
@@ -181,10 +146,6 @@ i8 fieldSetAlive(Field *field, u16 row, u16 column)
     return 1;
 }
 
-/*
- * Description: Set cell at position to dead.
- * Input:       Field struct, row, column.
- */
 i8 fieldSetDead(Field *field, u16 row, u16 column)
 {
     if (column >= field->columns ||
@@ -195,10 +156,6 @@ i8 fieldSetDead(Field *field, u16 row, u16 column)
     return 1;
 }
 
-/*
- * Description: Set all cells to dead.
- * Input:       Field struct.
- */
 void fieldSetAllDead(Field *field)
 {
     for (short r=0;r<field->rows;r++) {

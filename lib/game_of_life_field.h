@@ -9,6 +9,19 @@
 typedef struct Field Field;
 
 /**
+ * @brief Creates a new Field struct.
+ * @param[in] rows Rows.
+ * @param[in] columns Columns.
+ * @return Pointer to new Field struct.
+ */
+Field *fieldNew(u16 rows, u16 columns);
+/**
+ * @brief Free memory of Field struct.
+ * @param[in] field Field struct.
+ */
+void fieldFree(Field *field);
+
+/**
  * @brief Get rows of Field struct.
  * @param[in] field Field struct.
  */
@@ -56,12 +69,12 @@ i8 fieldSetAlive(Field *field, u16 row, u16 column);
  */
 i8 fieldSetDead(Field *field, u16 row, u16 column);
 /**
- * @brief Sets all cells in Field struct to dead.
+ * @brief Set all cells to dead.
  * @param[in] field Field struct.
  */
 void fieldSetAllDead(Field *field);
 /**
- * @brief Make next generation current generation in Field struct. 
+ * @brief Make next generation current generation.
  * @param[in] field Field struct.
  */
 void fieldMoveCurrentGenerationToNext(Field *field);
@@ -71,18 +84,5 @@ void fieldMoveCurrentGenerationToNext(Field *field);
  */
 void fieldStepSinglet(Field *field);
 //void stepMultit(Field *field, int n);
-
-/**
- * @brief Creates a new Field struct.
- * @param[in] rows Rows.
- * @param[in] columns Columns.
- * @return Pointer to new Field struct.
- */
-Field *fieldNew(u16 rows, u16 columns);
-/**
- * @brief Free memory of Field struct.
- * @param[in] field Field struct.
- */
-void fieldFree(Field *field);
 
 #endif
