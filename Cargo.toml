@@ -1,0 +1,19 @@
+[package]
+name = "conways_game_of_life_dyn_lib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+
+[dependencies]
+
+itertools = "0.12.1"
+
+[dev-dependencies]
+inline_colorization = "0.1.6"
