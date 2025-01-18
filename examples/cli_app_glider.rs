@@ -14,7 +14,17 @@ macro_rules! set_bit {
 
 fn main()
 {
-    let mut field = Field::new();
+    let mut field = set_field_chunks!(
+        0,-1, 0xff7e3c18; // Triangle up
+       -1, 0, 0x80c0e0f0f0e0c08; // Triangle right
+        0, 0, 0x183008000000>>8; // Glider
+    );
+
+    /*set_field_chunks!(field;
+        0,-1, 0xff7e3c18; // Triangle up
+       -1, 0, 0x80c0e0f0f0e0c08; // Triangle right
+        0, 0, 0x183008000000; // Glider
+    );*/
 
     /*field.get_mut_current().push(Chunk {x: -1, y: -1, data: ChunkCellData {
         bytes: [
@@ -43,63 +53,31 @@ fn main()
         0, 0, long: 0xff818181818181ff
     );*/
 
-    set_field_chunks!(&mut field;
+    /*set_field_chunks!(&mut field;
         0, 0, bytes: [0,0,2<<2,4<<2,7<<2,0,0,0]
-    );
-
-    /*set_field_chunks!(&mut field;
-        2, 2, long: 0xff818181818181ff;
-        0, 1, long: 0xff818181818181ff;
-        1, 1, long: 0xff818181818181ff;
-       -1, 1, long: 0xff818181818181ff
-    );
-
-    field.add_chunk(0, 0, ChunkCellData {bytes: [
-        0b00000000,
-        0b00011000,
-        0b00111100,
-        0b01111110,
-        0b11111111,
-        0b00000000,
-        0b00000000,
-        0b00000000]}).unwrap();*/
-
-    /*set_field_chunk_bytes!(field;
-        0, 0,
-        0b01000,
-        0b00100,
-        0b11100;
     );*/
 
-    /*set_field_chunks!(&mut field;
-        -1, -1, long: 0x70402 << 2;
-        -1,  1, long: 0x70402
-        //-1,  2, long: 0xff7e3c1800 // Arrow
-    );*/
+    //field.add_chunk(1,1,ChunkCellData { long: 0x70507 } ).unwrap();
 
-    /*unsafe {
-        let a = ChunkCellData {bytes: [
-            0b00000000,
-            0b00011000,
-            0b00111100,
-            0b01111110,
-            0b11111111,
-            0b00000000,
-            0b00000000,
-            0b00000000]};
-        println!("{:#x}", a.long);
-    }*/
+    /*field.find_mut_chunk(1,3).unwrap().mirror_y();
+    field.find_mut_chunk(1,2).unwrap().mirror_x();*/
 
     let mut input: String;
     let (mut x_view, mut y_view): (Range<i32>, Range<i32>) = (-20..20, -20..20);// Visible area
+    const STEP_SIZE: i32 = 3;
 
     loop {
         input = String::new();
 
         //println!("Generation: {gen}\n", gen = field.get_generation());
 
-        draw_field(&field, x_view.clone(), y_view.clone());
+        draw_field(&field, x_view.clone(), y_view.clone(), true);
+        /*unsafe {
+            print!("{:#x}", field.find_chunk(0,0).unwrap().data.long);
+        }*/
         //_draw(&field, -10, -10, 10, 10);
+
+        //print!("{:?}", field.find_chunk(1,3).unwrap().data);
         
 
         stdin().read_line(&mut input).expect("Could not understand that");
@@ -111,23 +89,23 @@ fn main()
             }
 
             "u" | "U" => {
-                y_view.start -= 1;
-                y_view.end -= 1;
+                y_view.start -= STEP_SIZE;
+                y_view.end -= STEP_SIZE;
             }
 
             "d" | "D" => {
-                y_view.start += 1;
-                y_view.end += 1;
+                y_view.start += STEP_SIZE;
+                y_view.end += STEP_SIZE;
             }
 
             "l" | "L" => {
-                x_view.start -= 1;
-                x_view.end -= 1;
+                x_view.start -= STEP_SIZE;
+                x_view.end -= STEP_SIZE;
             }
 
             "r" | "R" => {
-                x_view.start += 1;
-                x_view.end += 1;
+                x_view.start += STEP_SIZE;
+                x_view.end += STEP_SIZE;
             }
 
             "0" => {
@@ -157,19 +135,21 @@ fn main()
     
 }
 
-fn draw_field<'a>(f: &'a Field, x_range: Range<i32>, y_range: Range<i32>)
+fn draw_field(f: &Field, x_range: Range<i32>, y_range: Range<i32>, chunk_colors: bool)
 {
     let blocks: u16 = ((x_range.len() + 1) / 8) as u16 + (((x_range.len() + 1) % 8 > 0) as u16);
 
     let mut current: Vec<Vec<u8>> = vec![vec![0; blocks.into()]; y_range.len() + 1];
 
-    // Buffer up all the cells.
+    // Buffer up all the cell states.
     for chunk in f.get_current() {
         if !chunk.all_are_dead() {
             for i in 0i8..64 {
-                let global_x = (chunk.x * 8) as i32 + (i % 8) as i32;
-                let global_y = (chunk.y * 8) as i32 + (i / 8) as i32;
+                // Get global cell coordinates for that index.
+                let global_x = (chunk.get_x() * 8) as i32 + (i % 8) as i32;
+                let global_y = (chunk.get_y() * 8) as i32 + (i / 8) as i32;
 
+                // Check if chunk is visible in that range/window size.
                 if (x_range.contains(&global_x) || x_range.end == global_x) && (y_range.contains(&global_y) || y_range.end == global_y) {
 
                     if chunk.is_alive(i) {
@@ -190,17 +170,16 @@ fn draw_field<'a>(f: &'a Field, x_range: Range<i32>, y_range: Range<i32>)
     // Draw it.
     println!("{esc}[{r}A", esc = 27 as char, r = y_range.len() + 5);
     println!("Generation: {gen}\n", gen = f.get_generation());
-    
+
+    let mut state: &str;
     for y in 0..y_range.len() + 1 {
-        for x in 0..x_range.len() + 1 {
-            let state = if current[y as usize][(x / 8) as usize] & 1<<(x % 8) >= 1 { " X" } else { " ." };
+        for x in (0..x_range.len() + 1).rev() {// Terminal writes left to right, need to go the other way
+            state = if current[y as usize][(x / 8) as usize] & 1<<(x % 8) >= 1 { " X" } else { " ." };
 
-            let is_white: bool = (((x as i32 + x_range.start + (1<<30)) / 8) ^ ((y as i32 + y_range.start + (1<<30)) / 8)) & 1 >= 1;
-
-            if is_white {
-                print!("{color_white}{style_bold}{state}");
-            } else {
+            if chunk_colors && (((x as i32 + x_range.start + (1<<30)) / 8) ^ ((y as i32 + y_range.start + (1<<30)) / 8)) & 1 >= 1 {// Create checkerboard
                 print!("{color_red}{style_bold}{state}");
+            } else {
+                print!("{color_white}{style_bold}{state}");
             }
         }
         println!("{style_reset}");
@@ -208,23 +187,4 @@ fn draw_field<'a>(f: &'a Field, x_range: Range<i32>, y_range: Range<i32>)
 
     // God, this took fricking months to get right.
     
-}
-
-fn _draw_chunk(f: &Field, x: i32, y:i32)
-{
-    for c in f.get_current().iter() {
-        if c.x == x && c.y == y {
-            for i in 0..64 {
-                if c.is_alive(i) {
-                    print!("X ");
-                } else {
-                    print!(". ");
-                }
-
-                if i % 8 == 7 {
-                    println!();
-                }
-            }
-        }
-    }
 }
