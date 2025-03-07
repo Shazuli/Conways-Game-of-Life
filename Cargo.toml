@@ -1,23 +1,33 @@
 [package]
 name = "conways_game_of_life_dyn_lib"
-version = "2.0.0"
+description = "Library for running Conway's Game of Life."
+repository = "https://github.com/Shazuli/Conways-Game-of-Life/tree/Rust_dyn"
+readme = "README.md"
+version = "2.0.0-alpha"
 edition = "2021"
+license = "MIT"
+authors = ["Simon"]
+keywords = ["game of life","game","lib","simulation"]
+categories = ["simulation","games","mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = ["chunk_utilities", "serialization", "concurrency"]
+std = []
 chunk_utilities = []
-serialization = []
-concurrency = []
+serialization = ["std"]
+concurrency = ["std"]
 
 [profile.release]
 strip = true
-opt-level = "z"
+opt-level = 3
 lto = true
 codegen-units = 1
 
 [dependencies]
+itertools = "0.14.0"
 
 [dev-dependencies]
 inline_colorization = "0.1.6"
+criterion = { version = "0.4", features = ["html_reports"] }

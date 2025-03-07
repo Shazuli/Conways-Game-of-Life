@@ -1,9 +1,10 @@
-use std::io::stdin;
+use std::{io::stdin, process::exit};
 use inline_colorization::*;
 
 //use std::io::stdin
-//use conways_game_of_life_dyn_lib::{Field, ChunkCellData, set_field_chunks, game_of_life::calculate_rules_classic};
-use conways_game_of_life_dyn_lib::*;
+//game_of_life_core::chunk_utilities
+use conways_game_of_life_dyn_lib::{game_of_life::calculate_rules_classic, set_field_chunks, Field};
+//use conways_game_of_life_dyn_lib::*;
 //use std::cmp::min;
 
 
@@ -14,16 +15,41 @@ macro_rules! set_bit {
 }
 
 
-
-
 fn main()
 {
+
     let mut field = set_field_chunks!(
         //0,-1, 0xff7e3c18; // Triangle up
-       -1, 0, 0x80c0e0f0f0e0c08; // Triangle right
-        0, 0, 0x70402; // Glider left
-       -1,-1, 0x1e111009; // Spaceship left
+       //-1, 0, 0x80c0e0f0f0e0c08; // Triangle right
+        0, 0, 0x70402; // Glider to left down
+       -1,-1, 0x1e111009; // Spaceship to left
+       //-2, 0, 0b01000100_01001000_01010000_01110000_01001000_01000100_01000100_01111000; // "R"
     );
+
+
+    /*{
+        // Generate test values.
+        let mut field_old_ref = field.clone();
+        for _i in 0u8..40 {
+
+            field.step_singlet(calculate_rules_classic, 3);
+            
+            for c in field.get_current() {
+                println!("assert_eq!(f.find_chunk({},{}).get_data_u64(), {:#x});", c.get_x(), c.get_y(), field_old_ref.find_chunk(c.get_x(), c.get_y()).get_data_u64());
+            }
+
+            field_old_ref.step_singlet(calculate_rules_classic, 3);
+
+            println!("f.step_singlet(game_of_life::calculate_rules_classic, 3);");
+        }
+    }
+    exit(0);*/
+
+    //field.find_mut_chunk(-2, 0).unwrap().rotate(chunk_utilities::Direction::AntiClockwise90);
+    //field.find_mut_chunk(-2, 0).unwrap().rotate(chunk_utilities::Direction::Clockwise90);
+    /*println!("{:#x}",field.find_chunk(-2, 0).rotate(chunk_utilities::Direction::Clockwise90).get_data_u64());
+    println!("{:#x}",field.find_chunk(-2, 0).rotate(chunk_utilities::Direction::AntiClockwise90).get_data_u64());
+    println!("{:#x}",field.find_chunk(-2, 0).rotate(chunk_utilities::Direction::Clockwise180).get_data_u64());*/
 
     /*let mut field = set_field_chunks!(
         0,0,0xff818181818181ff;
