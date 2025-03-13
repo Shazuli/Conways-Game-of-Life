@@ -1,5 +1,4 @@
-use super::{calc_chunk_inner, calc_chunk_outer, Chunk, ChunkCellData};
-use core::slice;
+use super::{ChunkCellData, Chunk, Field, calc_chunk_inner, calc_chunk_outer};
 use std::{cmp:: min, num::NonZero, sync::{Arc, Mutex}, thread};
 
 
@@ -28,7 +27,7 @@ impl Iterator for ChunkSlice {
     }
 }*/
 
-impl super::Field {
+impl Field {
 
     /// Step the simulation once in multiple threads and increment generation count.
     /// Requires a "rules" fn to apply when calculating the next generation.
@@ -78,4 +77,3 @@ impl super::Field {
         }
     }
 }
-

@@ -1,4 +1,4 @@
-use std::{io::stdin, process::exit};
+use std::io::stdin;
 use inline_colorization::*;
 
 //use std::io::stdin
@@ -18,13 +18,29 @@ macro_rules! set_bit {
 fn main()
 {
 
+    let (mut x_low, mut x_high, mut y_low, mut y_high): (i32, i32, i32, i32) = (-20, 20, -20, 20);
+    const STEP_SIZE: i32 = 3;
+
     let mut field = set_field_chunks!(
-        //0,-1, 0xff7e3c18; // Triangle up
-       //-1, 0, 0x80c0e0f0f0e0c08; // Triangle right
-        0, 0, 0x70402; // Glider to left down
-       -1,-1, 0x1e111009; // Spaceship to left
-       //-2, 0, 0b01000100_01001000_01010000_01110000_01001000_01000100_01000100_01111000; // "R"
+        //0,-1, 0xff7e3c18;// Triangle up
+       //-1, 0, 0x80c0e0f0f0e0c08;// Triangle right
+        0, 0, 0x70402;// Glider to left down
+       -1,-1, 0x1e111009;// Spaceship to left
+       //-2, 0, 0b01000100_01001000_01010000_01110000_01001000_01000100_01000100_01111000;// "R"
+        //2,2,0b00000100_00001110_00000011_00000011;// Chaos
     );
+
+    //println!("{}", serde_json::to_string(&field).unwrap());
+
+    /*draw_field(&field, x_low, x_high, y_low, y_high, true, false);
+
+    let serialized = serde_json::to_string(&field).unwrap();
+
+    let field_json: Field = serde_json::from_str(&serialized).unwrap();
+
+    draw_field(&field_json, x_low, x_high, y_low, y_high, true, false);
+
+    exit(0);*/
 
 
     /*{
@@ -78,15 +94,14 @@ fn main()
 
     let mut input: String;
     //let (mut x_view, mut y_view): (Range<i32>, Range<i32>) = (-20..20, -20..20);// Visible area
-    let (mut x_low, mut x_high, mut y_low, mut y_high): (i32, i32, i32, i32) = (-20, 20, -20, 20);
-    const STEP_SIZE: i32 = 3;
+    
 
     loop {
         input = String::new();
 
         //println!("Generation: {gen}\n", gen = field.get_generation());
 
-        draw_field(&field, x_low, x_high, y_low, y_high, true);
+        draw_field(&field, x_low, x_high, y_low, y_high, true, true);
         /*unsafe {
             print!("{:#x}", field.find_chunk(0,0).unwrap().data.long);
         }*/
@@ -150,7 +165,7 @@ fn main()
     
 }
 
-fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk_colors: bool)
+fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk_colors: bool, write_over: bool)
 {
     let x_range: i32 = if x_low.is_negative() {
         if x_high.is_negative() {
@@ -206,7 +221,7 @@ fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk
     }
 
     // Draw it.
-    if f.get_generation() != 0 {
+    if write_over {
         println!("{esc}[{r}A", esc = 27 as char, r = y_range + 4);
     }
     println!("Generation: {gen}\n", gen = f.get_generation());

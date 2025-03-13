@@ -12,11 +12,15 @@ categories = ["simulation","games","mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bench]]
+name = "benchmark_step"
+harness = false
+
 [features]
 default = ["chunk_utilities", "serialization", "concurrency"]
 std = []
 chunk_utilities = []
-serialization = ["std"]
+serialization = ["dep:serde"]
 concurrency = ["std"]
 
 [profile.release]
@@ -26,8 +30,9 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-itertools = "0.14.0"
+serde = { version = "1.0.219", default-features = false, optional = true }
 
 [dev-dependencies]
+serde_json = "1.0.140"
 inline_colorization = "0.1.6"
 criterion = { version = "0.4", features = ["html_reports"] }

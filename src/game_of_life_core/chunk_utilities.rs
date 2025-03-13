@@ -1,3 +1,4 @@
+use super::Chunk;
 use core::fmt;
 
 pub enum Direction {
@@ -34,9 +35,7 @@ const fn flip_diag_a1h8(x: u64) -> u64
     t  = K2 & (x ^ (x << 14));
     x ^=       t ^ (t >> 14) ;
     t  = K1 & (x ^ (x <<  7));
-    x ^=       t ^ (t >>  7) ;
-
-    x
+    x ^        t ^ (t >>  7)
 }
 
 const fn mirror_horizontal(x: u64) -> u64
@@ -49,26 +48,25 @@ const fn mirror_horizontal(x: u64) -> u64
 
     x = ((x >> 1) & K1) | ((x & K1) << 1);
     x = ((x >> 2) & K2) | ((x & K2) << 2);
-    x = ((x >> 4) & K4) | ((x & K4) << 4);
-
-    x
+        ((x >> 4) & K4) | ((x & K4) << 4)
 }
 
 
-impl fmt::Debug for super::Chunk {
+impl fmt::Debug for Chunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
         unsafe {
             write!(f,"[{},{}]\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}",
                 self.x,self.y,
-                self.data.u8x8[0],self.data.u8x8[1],self.data.u8x8[2],self.data.u8x8[3],self.data.u8x8[4],self.data.u8x8[5],self.data.u8x8[6],self.data.u8x8[7]
+                self.data.u8x8[0],self.data.u8x8[1],self.data.u8x8[2],self.data.u8x8[3],
+                self.data.u8x8[4],self.data.u8x8[5],self.data.u8x8[6],self.data.u8x8[7]
             )
         }
     }
 }
 
 
-impl super::Chunk {
+impl Chunk {
 
     /// Mirrors the chunk's cell states vertically.
     pub fn mirror_vertical(&mut self) -> &mut Self
