@@ -3,7 +3,7 @@ use inline_colorization::*;
 
 //use std::io::stdin
 //game_of_life_core::chunk_utilities
-use conways_game_of_life_dyn_lib::{game_of_life::calculate_rules_classic, set_field_chunks, Field};
+use conways_game_of_life_dyn_lib::{set_field, Field, rule_fns::rule_conways_game_of_life as rule};
 //use conways_game_of_life_dyn_lib::*;
 //use std::cmp::min;
 
@@ -21,14 +21,33 @@ fn main()
     let (mut x_low, mut x_high, mut y_low, mut y_high): (i32, i32, i32, i32) = (-20, 20, -20, 20);
     const STEP_SIZE: i32 = 3;
 
-    let mut field = set_field_chunks!(
+    let mut field = set_field!(
         //0,-1, 0xff7e3c18;// Triangle up
        //-1, 0, 0x80c0e0f0f0e0c08;// Triangle right
         0, 0, 0x70402;// Glider to left down
        -1,-1, 0x1e111009;// Spaceship to left
-       //-2, 0, 0b01000100_01001000_01010000_01110000_01001000_01000100_01000100_01111000;// "R"
+       -2, 0, 0b01000100_01001000_01010000_01110000_01001000_01000100_01000100_01111000;// "R"
         //2,2,0b00000100_00001110_00000011_00000011;// Chaos
     );
+    /*let mut field = Field::new();
+
+    let (
+        x_min_chunk, x_max_chunk,
+        y_min_chunk, y_max_chunk
+    ) = (-2, 2, -2, 2);
+
+    // Create checkerboard.
+    for x in (x_min_chunk * 8)..((x_max_chunk+1) * 8) {
+        for y in (y_min_chunk * 8)..((y_max_chunk+1) * 8) {
+            if (x ^ y) & 1 != 0 {
+                // Set to alive. Chunk data should change.
+                assert!(field.set_cell_state(x, y, true), "pos: [{x},{y}]");
+            } else {
+                // Set to dead. Chunk data shouldn't change.
+                assert!(!field.set_cell_state(x, y, false), "pos: [{x},{y}]");
+            }
+        }
+    }*/
 
     //println!("{}", serde_json::to_string(&field).unwrap());
 
@@ -60,6 +79,9 @@ fn main()
         }
     }
     exit(0);*/
+
+    //field.find_mut_chunk(-2, 0).unwrap().mirror_horizontal();
+    //print!("{:#x}",field.find_chunk(-2,0).get_data());
 
     //field.find_mut_chunk(-2, 0).unwrap().rotate(chunk_utilities::Direction::AntiClockwise90);
     //field.find_mut_chunk(-2, 0).unwrap().rotate(chunk_utilities::Direction::Clockwise90);
@@ -115,7 +137,7 @@ fn main()
 
         match input.trim() {
             "q" | "Q" => {
-                break
+                break;
             }
 
             "u" | "U" => {
@@ -147,7 +169,7 @@ fn main()
             
 
             _ => {
-                field.step_singlet(calculate_rules_classic, 3);
+                field.step(rule, 3);
             }
         }
 
@@ -195,7 +217,7 @@ fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk
     let mut current: Vec<Vec<u8>> = vec![vec![0; blocks.into()]; y_range + 1];
 
     // Buffer up all the cell states.
-    for chunk in f.get_current() {
+    for chunk in f.get_current_slice() {
         if !chunk.all_are_dead() {
             for i in 0i8..64 {
                 // Get global cell coordinates for that index.
@@ -205,7 +227,7 @@ fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk
                 // Check if chunk is visible in that range/window size.
                 if (global_x >= x_low && global_x <= x_high) && (global_y >= y_low && global_y <= y_high) {
 
-                    if chunk.is_alive(i).unwrap() {
+                    if chunk.get_cell_state(i).unwrap() {
                         // Convert global coordinates to local.
                         // Feels like there are a ton of edge-cases here, so might have to look at this later.
                         let local_x = if x_low.is_negative() { global_x - x_low } else { global_x - x_low.abs() };
@@ -236,10 +258,13 @@ fn draw_field(f: &Field, x_low: i32, x_high: i32, y_low: i32, y_high: i32, chunk
 
             if chunk_colors && (((x + x_offset) / 8) ^ ((y as i32 + y_offset) / 8) as i32) & 1 >= 1 {// Create checkerboard
                 print!("{color_red}{style_bold}{state}");
+                //write!(&mut buf, "{color_red}{style_bold}{state}");
             } else {
                 print!("{color_white}{style_bold}{state}");
+                //write!(&mut buf, "{color_white}{style_bold}{state}");
             }
         }
         println!("{style_reset}");
+        //writeln!(&mut buf, "{style_reset}");
     }
 }

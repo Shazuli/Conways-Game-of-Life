@@ -1,10 +1,32 @@
-use super::Chunk;
-use core::fmt;
+//! Contains macros and methods to manipulate a struct Chunk.
 
-pub enum Direction {
-    Clockwise90,
-    AntiClockwise90,
-    Clockwise180
+use super::Chunk;
+
+/// Specify rotation direction and how much to rotate.
+pub enum Rotation {
+    ClockwiseDegrees(i16),
+    AntiClockwiseDegrees(i16)
+}
+
+/// Sets cells in struct Chunk at local position to alive.
+/// ```no_run
+/// use conways_game_of_life_dyn_lib::{set_cells_alive, ChunkCellData8x8, Chunk};
+/// 
+/// let mut c = Chunk::new(0, 0, ChunkCellData8x8::from(0));
+/// set_cells_alive!(c :=
+///     0,0; 1,1; 2,2;
+/// );
+/// 
+/// assert_eq!(unsafe { c.data.u64 }, 0x40201);
+/// ```
+#[macro_export]
+macro_rules! set_cells_alive {
+    ($c:ident := $($x:expr, $y:expr);+ $(;)?) => {
+        use $crate::IS_ALIVE_BIT as S;
+        $(
+            $c.set_cell_state(($x + $y * 8) | S);
+        )+
+    }
 }
 
 // Algorithms taken from the chess programming Wiki: https://www.chessprogramming.org/Flipping_Mirroring_and_Rotating
@@ -28,7 +50,7 @@ const fn flip_diag_a1h8(x: u64) -> u64
     const K4: u64 = 0x0f0f0f0f00000000;
 
     let mut t: u64;
-    let mut x: u64 = x;
+    let mut x = x;
 
     t  = K4 & (x ^ (x << 28));
     x ^=       t ^ (t >> 28) ;
@@ -44,7 +66,7 @@ const fn mirror_horizontal(x: u64) -> u64
     const K2: u64 = 0x3333333333333333;
     const K4: u64 = 0x0f0f0f0f0f0f0f0f;
 
-    let mut x: u64 = x;
+    let mut x = x;
 
     x = ((x >> 1) & K1) | ((x & K1) << 1);
     x = ((x >> 2) & K2) | ((x & K2) << 2);
@@ -52,53 +74,56 @@ const fn mirror_horizontal(x: u64) -> u64
 }
 
 
-impl fmt::Debug for Chunk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
-        unsafe {
-            write!(f,"[{},{}]\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}\n{:08b}",
-                self.x,self.y,
-                self.data.u8x8[0],self.data.u8x8[1],self.data.u8x8[2],self.data.u8x8[3],
-                self.data.u8x8[4],self.data.u8x8[5],self.data.u8x8[6],self.data.u8x8[7]
-            )
-        }
-    }
-}
-
-
 impl Chunk {
 
-    /// Mirrors the chunk's cell states vertically.
-    pub fn mirror_vertical(&mut self) -> &mut Self
+    /// Sets all cells to dead for the chunk and returns itself.
+    pub const fn set_all_dead(&mut self) -> &mut Self
     {
-        if !self.all_are_dead() {
-            unsafe { self.data.u64 = flip_vertical(self.data.u64); }
+        unsafe { self.data.u64 ^= self.data.u64; }
+        self
+    }
+
+    /// Mirrors the chunk's cell states vertically and returns itself.
+    pub const fn mirror_vertical(&mut self) -> &mut Self
+    {
+        let data = unsafe { self.data.u64 };
+        if data != 0 {
+            self.data.u64 = flip_vertical(data);
         }
         self
     }
 
-    /// Mirrors the chunk's cell states horizontally.
-    pub fn mirror_horizontal(&mut self) -> &mut Self
+    /// Mirrors the chunk's cell states horizontally and returns itself.
+    pub const fn mirror_horizontal(&mut self) -> &mut Self
     {
-        if !self.all_are_dead() {
-            unsafe { self.data.u64 = mirror_horizontal(self.data.u64); }
+        let data = unsafe { self.data.u64 };
+        if data != 0 {
+            self.data.u64 = mirror_horizontal(data);
         }
         self
     }
 
-    /// Rotates the chunk's cell states in that direction.
-    pub fn rotate(&mut self, direction: Direction) -> &mut Self
+    /// Rotates the chunk's cell states in that direction and returns itself. Supports only 90-degrees turns.
+    pub const fn rotate(&mut self, direction: Rotation) -> &mut Self
     {
-        if !self.all_are_dead() {
+        let data = unsafe { self.data.u64 };
+
+        if data != 0 {
+
+            use Rotation as R;
+
             self.data.u64 = match direction {
-                Direction::Clockwise90 => {
-                    unsafe { flip_vertical(flip_diag_a1h8(self.data.u64)) }
+                R::ClockwiseDegrees(90) | R::AntiClockwiseDegrees(270) | R::AntiClockwiseDegrees(-90) => {
+                    flip_vertical(flip_diag_a1h8(data))
                 },
-                Direction::AntiClockwise90 => {
-                    unsafe { flip_diag_a1h8(flip_vertical(self.data.u64)) }
+                R::AntiClockwiseDegrees(90) | R::ClockwiseDegrees(270) | R::ClockwiseDegrees(-90) => {
+                    flip_diag_a1h8(flip_vertical(data))
                 },
-                Direction::Clockwise180 => {
-                    unsafe { mirror_horizontal(flip_vertical(self.data.u64)) }
+                R::ClockwiseDegrees(180) | R::AntiClockwiseDegrees(180) | R::ClockwiseDegrees(-180) | R::AntiClockwiseDegrees(-180) => {
+                    mirror_horizontal(flip_vertical(data))
+                },
+                _ => {
+                    data
                 }
             };
         }

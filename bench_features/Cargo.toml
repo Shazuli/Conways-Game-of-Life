@@ -1,0 +1,19 @@
+[package]
+name = "bench_features"
+publish = false
+edition.workspace = true
+repository.workspace = true
+
+[[bench]]
+name = "benchmark_step"
+harness = false
+
+[profile.bench]
+lto = true
+codegen-units = 1
+
+[dependencies]
+conways_game_of_life_dyn_lib = { path = "../", default-features = false, features = ["rule_fns","step_single_thread"] }
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }

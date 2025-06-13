@@ -1,4 +1,7 @@
-use super::{ChunkCellData, Chunk, Field as GOLField};
+//! Contains methods to serialize and deserialize a struct Field and struct Chunk using Serde.
+
+use super::{ChunkCellData8x8, Chunk, Field as GOLField, get_current_gen_index};
+use alloc::{borrow::ToOwned, vec::Vec};
 use serde::{de::{Deserialize, Deserializer, Error, MapAccess, SeqAccess, Visitor}, ser::SerializeStruct, Serialize, Serializer};
 use core::fmt;
 
@@ -11,7 +14,7 @@ impl Serialize for Chunk {
         let mut s = serializer.serialize_struct("Chunk", 3)?;
         s.serialize_field("x",&self.x)?;
         s.serialize_field("y",&self.y)?;
-        s.serialize_field("data",&self.get_data_u64())?;
+        s.serialize_field("d",&{ let data: u64 = self.data.into(); data })?;
         s.end()
     }
 }
@@ -22,8 +25,8 @@ impl Serialize for GOLField {
             S: Serializer
     {
         let mut s = serializer.serialize_struct("Field", 2)?;
-        s.serialize_field("generation",&self.generation)?;
-        s.serialize_field("current",&self.get_current())?;
+        s.serialize_field("gen",&self.generation)?;
+        s.serialize_field("crt",&self.get_current())?;
         s.end()        
     }
 }
@@ -47,7 +50,7 @@ impl<'de> Deserialize<'de> for Chunk {
                     type Value = Field;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("`x`, `y` or `data`")
+                        formatter.write_str("`x`, `y` or `d`")
                     }
 
                     fn visit_str<E>(self, value: &str) -> Result<Field, E>
@@ -57,8 +60,8 @@ impl<'de> Deserialize<'de> for Chunk {
                         match value {
                             "x" => Ok(Field::X),
                             "y" => Ok(Field::Y),
-                            "data" => Ok(Field::DATA),
-                            _ => Err(Error::unknown_field(value, FIELDS)),
+                            "d" => Ok(Field::DATA),
+                            _ => Err(Error::unknown_field(value, FIELDS))
                         }
                     }
                 }
@@ -85,17 +88,17 @@ impl<'de> Deserialize<'de> for Chunk {
                     .ok_or_else(|| Error::invalid_length(0, &self))?;
                 let y = seq.next_element()?
                     .ok_or_else(|| Error::invalid_length(1, &self))?;
-                let data = seq.next_element()?
+                let data: u64 = seq.next_element()?
                     .ok_or_else(|| Error::invalid_length(2, &self))?;
-                Ok(Chunk { x, y, data: ChunkCellData { u64: data } })
+                Ok(Chunk { x, y, data: ChunkCellData8x8::from(data) })
             }
 
             fn visit_map<V>(self, mut map: V) -> Result<Chunk, V::Error>
             where
                 V: MapAccess<'de>
             {
-                let mut x = None;
-                let mut y = None;
+                let mut x: Option<i32> = None;
+                let mut y: Option<i32> = None;
                 let mut data: Option<u64> = None;
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -113,7 +116,7 @@ impl<'de> Deserialize<'de> for Chunk {
                         },
                         Field::DATA => {
                             if data.is_some() {
-                                return Err(Error::duplicate_field("data"));
+                                return Err(Error::duplicate_field("d"));
                             }
                             data = Some(map.next_value()?);
                         }
@@ -121,12 +124,12 @@ impl<'de> Deserialize<'de> for Chunk {
                 }
                 let x = x.ok_or_else(|| Error::missing_field("x"))?;
                 let y = y.ok_or_else(|| Error::missing_field("y"))?;
-                let data = data.ok_or_else(|| Error::missing_field("data"))?;
-                Ok(Chunk { x, y, data: ChunkCellData { u64: data } })
+                let data = data.ok_or_else(|| Error::missing_field("d"))?;
+                Ok(Chunk { x, y, data: ChunkCellData8x8::from(data) })
             }
         }
 
-        const FIELDS: &[&str] = &["x", "y", "data"];
+        const FIELDS: &[&str] = &["x", "y", "d"];
         deserializer.deserialize_struct("Chunk", FIELDS, ChunkVisitor)
     }
 }
@@ -151,7 +154,7 @@ impl<'de> Deserialize<'de> for GOLField {
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
                     {
-                        formatter.write_str("`generation` or `current`")
+                        formatter.write_str("`gen` or `crt`")
                     }
 
                     fn visit_str<E>(self, value: &str) -> Result<Field, E>
@@ -159,9 +162,9 @@ impl<'de> Deserialize<'de> for GOLField {
                         E: Error,
                     {
                         match value {
-                            "generation" => Ok(Field::GENERATION),
-                            "current" => Ok(Field::CURRENT),
-                            _ => Err(Error::unknown_field(value, FIELDS)),
+                            "gen" => Ok(Field::GENERATION),
+                            "crt" => Ok(Field::CURRENT),
+                            _ => Err(Error::unknown_field(value, FIELDS))
                         }
                     }
                 }
@@ -189,8 +192,11 @@ impl<'de> Deserialize<'de> for GOLField {
                 let current: Vec<Chunk> = seq.next_element()?
                     .ok_or_else(|| Error::invalid_length(1, &self))?;
 
-                let mut chunks: [Vec<Chunk>; 2] = [Vec::new(), Vec::new()];
-                chunks[(generation as u8 & 1) as usize] = current.to_owned();
+                let chunks = {
+                    let mut chunks: [Vec<Chunk>; 2] = [Vec::with_capacity(current.len()), Vec::with_capacity(current.len())];
+                    chunks[get_current_gen_index(generation)] = current.to_owned();
+                    chunks
+                };
 
                 Ok(GOLField { generation, chunks })
             }
@@ -199,127 +205,38 @@ impl<'de> Deserialize<'de> for GOLField {
             where
                 V: MapAccess<'de>,
             {
-                let mut generation = None;
+                let mut generation: Option<u64> = None;
                 let mut current: Option<Vec<Chunk>> = None;
                 while let Some(key) = map.next_key()? {
                     match key {
                         Field::GENERATION => {
                             if generation.is_some() {
-                                return Err(Error::duplicate_field("generation"));
+                                return Err(Error::duplicate_field("gen"));
                             }
                             generation = Some(map.next_value()?);
                         },
                         Field::CURRENT => {
                             if current.is_some() {
-                                return Err(Error::duplicate_field("current"));
+                                return Err(Error::duplicate_field("crt"));
                             }
                             current = Some(map.next_value()?);
                         }
                     }
                 }
-                let generation = generation.ok_or_else(|| Error::missing_field("generation"))?;
-                let current = current.ok_or_else(|| Error::missing_field("current"))?;
+                let generation = generation.ok_or_else(|| Error::missing_field("gen"))?;
+                let current = current.ok_or_else(|| Error::missing_field("crt"))?;
                 
-                let mut chunks: [Vec<Chunk>; 2] = [Vec::new(), Vec::new()];
-                chunks[(generation as u8 & 1) as usize] = current.to_owned();
+                let chunks = {
+                    let mut chunks: [Vec<Chunk>; 2] = [Vec::with_capacity(current.len()), Vec::with_capacity(current.len())];
+                    chunks[get_current_gen_index(generation)] = current.to_owned();
+                    chunks
+                };
 
                 Ok(GOLField { generation, chunks })
             }
         }
 
-        const FIELDS: &[&str] = &["generation", "current"];
+        const FIELDS: &[&str] = &["gen", "crt"];
         deserializer.deserialize_struct("Field", FIELDS, GOLFieldVisitor)
     }
 }
-
-    /*/// Writes Field struct to a file on the system.
-    pub fn serialize(&self, path: OsString) -> Result<()>
-    {
-        let mut file = File::create(path)?;
-
-
-        {
-            // Change this when this method changes.
-            let versioning: [u8; 1] = [0];
-
-            file.write(&versioning)?;
-        }
-
-        
-        file.write_all(&self.generation.to_be_bytes())?;
-
-        {
-            //let mut buffer: [u8; 16] = [0; 16];
-
-            let current = self.get_current();
-
-            // Write how long the list is.
-            //file.write_all(&current.len().to_be_bytes())?;
-
-            for c in current {
-
-                file.write_all(&c.x.to_be_bytes())?;
-                file.write_all(&c.y.to_be_bytes())?;
-                unsafe { file.write_all(&c.data.u64.to_be_bytes())?; }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Reads a file on the system to load a Field struct.
-    pub fn deserialize(path: OsString) -> Result<Self>
-    {
-        let mut file = File::open(path)?;
-
-
-        {
-            // Check if it's the wrong version format.
-            let mut buffer: [u8; 1] = [0; 1];
-
-            file.read(&mut buffer)?;
-
-            let versioning = buffer[0];
-
-            if versioning & 0x1f != 0 {
-                return Err(Error::other("Wrong format version"));
-            }
-        }
-
-        let mut f = Field::new();
-
-        {
-            let mut buffer: [u8; 4] = [0; 4];
-
-            file.read(&mut buffer)?;
-
-            f.generation = u32::from_be_bytes(buffer);
-        }
-
-        {
-            let mut buffer: Vec<u8> = Vec::new();
-
-            // Read all bytes at once.
-            let length = file.read_to_end(&mut buffer)? / 16;
-
-            let buffer = buffer;
-
-            let mut current: Vec<Chunk> = Vec::with_capacity(length);
-
-            for i in 0..length {
-                let chunk = Chunk {
-                    x: i32::from_be_bytes(buffer[i*16]),
-                    y: i32::from_be_bytes(buffer[i*16+4]),
-                    data: ChunkCellData { u64: u64::from_be_bytes(buffer[i*16+8]) }
-                };
-
-                current[i] = chunk;
-            }
-
-            *f.get_mut_current() = current;
-
-        }
-
-
-        Ok(f)
-    }*/

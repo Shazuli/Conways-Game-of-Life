@@ -1,5 +1,14 @@
-use super::{ChunkCellData, Chunk, Field, calc_chunk_inner, calc_chunk_outer};
-use std::{cmp:: min, num::NonZero, sync::{Arc, Mutex}, thread};
+//! Contains methods for concurrency. (W.I.P)
+
+//#[cfg(target_has_atomic)]
+//panic!("host doesn't have support for this module!");
+
+use super::{
+    calc_chunk_inner, calc_chunk_outer, cmp_coords, find_chunk_binary_search, get_neighbour_chunk_xy,
+    CellContext, Chunk, ChunkCellData8x8, Field,
+    DUMMY_CHUNK, NEIGHBOUR_CHUNK_INDEX, CHUNKS_IN_STACK
+};
+use std::{cmp::min, num::NonZero, sync::{Arc, Mutex}, thread};
 
 
 /*struct ChunkSlice {
@@ -29,17 +38,32 @@ impl Iterator for ChunkSlice {
 
 impl Field {
 
+    /// # W.I.P
     /// Step the simulation once in multiple threads and increment generation count.
     /// Requires a "rules" fn to apply when calculating the next generation.
     /// Threshold number of living neighbours when to abort and assume the cell will die.
     /// Max threads to run and prefered number of chunks each thread should do.
-    pub fn step_multit(&mut self, rules: fn(&mut ChunkCellData, i8, i8), threshold: i8, max_threads: NonZero<u8>, prefered_chunks_per_thread: NonZero<u16>)
+    pub fn step_multit(&mut self, rule: fn(&mut ChunkCellData8x8, i8, CellContext), threshold: i8, max_threads: NonZero<u8>, prefered_chunks_per_thread: NonZero<u16>)
     {
-        let current: &Vec<Chunk> = self.get_current();
-        let mut next: Arc<Mutex<Vec<Chunk>>> = Arc::new(Mutex::new(Vec::new()));
+        let current = {
+            //let mut tmp = self.get_current().clone();
 
-        // List of dummy chunk coordinates that may become real, pre-allocate at least current.capacity * 8 for it having 8 total neighbours.
-        let mut dummy_chunks_pos: Arc<Mutex<Vec<(i32, i32)>>> = Arc::new(Mutex::new(Vec::with_capacity(current.capacity() * 8)));
+            let mut tmp = tinyvec::tiny_vec!([Chunk; CHUNKS_IN_STACK]);
+            tmp.extend_from_slice(self.get_current());
+
+            // Sort by coordinates.
+            tmp.sort_unstable_by(|a, b| cmp_coords(&a.get_coordinates(), &b.get_coordinates()));
+            Arc::new(tmp)
+        };
+
+        let next = {
+            let tmp = self.get_mut_next();
+            tmp.clear();
+            Arc::new(Mutex::new(tmp))
+        };
+
+        // List of dummy chunk coordinates that may become real, pre-allocate at least current.len() * 8 for it having 8 total neighbours.
+        let mut dummy_chunks_pos: Arc<Mutex<Vec<(i32, i32)>>> = Arc::new(Mutex::new(Vec::with_capacity(current.len() * 8)));
 
         {
             // TODO Calculate number of threads and chunks divided over them.
@@ -60,6 +84,8 @@ impl Field {
                     //slice = Vec::new();
                     //slice.clone_from_slice(&current[slice_start..(slice_start + slice_size)]);
 
+                //current.split_at_checked(mid)
+                
                 for i in 0..num_threads {
 
                     // Create iter with start and end, copy it to the thread.
@@ -75,5 +101,6 @@ impl Field {
                 }
             });
         }
+        self.generation += 1;// Flips current/next
     }
 }

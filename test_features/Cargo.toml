@@ -1,0 +1,12 @@
+[package]
+name = "test_features"
+publish = false
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+conways_game_of_life_dyn_lib = { path = "../", features = ["rule_fns","step_single_thread","debug","chunk_utilities","field_utilities","serde","concurrency"] }
+
+[dev-dependencies]
+serde_json = "1.0.140"
+postcard = "1.1.1"
